@@ -3,6 +3,7 @@ library(readxl)
 library(lubridate)
 library(tidyr)
 library(tidyverse)
+library(DT)
 
 myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx"
 
@@ -14,6 +15,10 @@ ui <- fluidPage(
       helpText("Alege An"),
       selectInput("selectYear", "Years :",
                   unique(year(omniData$Date))
+      ),      
+      helpText("Alege Luna"),
+      selectInput("selectMonth", "Month :",
+                  choices = c("All","1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"),
       )
     ),
     mainPanel(
@@ -30,32 +35,39 @@ ui <- fluidPage(
     )
   )
 )
-
+ 
 server <- function(input, output) {
   
-  observeEvent(input$selectYear, {
+  myReactiveFunction <- reactive({
     
+    if(input$selectMonth == "All"){
+      
     omniFiltered <- data.frame(omniData %>% filter(year(Date) == input$selectYear & Value != 0))
+    
+    }else{
+      
+    omniFiltered <- data.frame(omniData %>% filter(year(Date) == input$selectYear & month(Date) == input$selectMonth & Value != 0))
+    
+    }
     
     tabelEMEA <- data.frame(pivot_wider(omniFiltered, names_from = Date, values_from = Value, names_prefix = "")) 
     
-    
     tabelNA <- data.frame(pivot_wider(omniFiltered, names_from = Date, values_from = Value, names_prefix = "")) 
     
+    tabelEMEA <- tabelEMEA %>% filter(tabelEMEA$Cluster == "EMEA")
     
-    output$tabel_EMEA <- renderTable({
-      
-      tabelEMEA <- tabelEMEA %>% filter(tabelEMEA$Cluster == "EMEA")
-      
-    })
+    tabelNA <- tabelNA %>% filter(tabelNA$Cluster == "NA")
     
-    output$tabel_NA <- renderTable({
-      
-      tabelNA <- tabelNA %>% filter(tabelNA$Cluster == "NA")
-      
-    })
-    
-  })  
+    list(tabel_EMEA = tabelEMEA, tabel_NA = tabelNA)
+  })
+  
+  output$tabel_EMEA <- renderTable({
+    myReactiveFunction()$tabel_EMEA
+  })
+  
+  output$tabel_NA <- renderTable({
+    myReactiveFunction()$tabel_NA
+  })
   
 }
 
