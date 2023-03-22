@@ -2,6 +2,7 @@ library(shiny)
 library(readxl)
 library(lubridate)
 library(tidyr)
+library(tidyverse)
 
 myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx"
 
@@ -18,11 +19,11 @@ ui <- fluidPage(
     mainPanel(
       fluidRow(
         column(12,
-               helpText("Tabel pentru EMEA"),
+               p("Tabel pentru EMEA"),
                tableOutput("tabel_EMEA")
         ),
         column(12,
-               helpText("Tabel pentru NA"),
+               p("Tabel pentru NA"),
                tableOutput("tabel_NA")
         )
       )
