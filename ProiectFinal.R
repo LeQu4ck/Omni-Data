@@ -10,17 +10,24 @@ myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx"
 omniData <- read_excel(myDataLocation) %>% mutate(Date = as.Date(Date))
 
 ui <- fluidPage(
+  
   sidebarLayout(
     sidebarPanel(
       helpText("Alege An"),
       selectInput("selectYear", "Years :",
-                  unique(year(omniData$Date))
+                  choices = c(unique(year(omniData$Date))),
+                  selected = "2021"
       ),      
       helpText("Alege Luna"),
       selectInput("selectMonth", "Month :",
                   choices = c("All","January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"),
                   selected = "All"
-      )
+      ),
+      helpText("Alege Contul"),
+      selectInput("selectAcc", "Accounts :",
+                  choices = c("All",unique(omniData$Account)),
+                  selected = "All"
+      ),   
     ),
     mainPanel(
       fluidRow(
@@ -41,16 +48,35 @@ server <- function(input, output) {
   
   myReactiveFunction <- reactive({
     
-  
+    #& input$selectMonth == "All" & input$selectAcc == "All" 
     
-    if(input$selectMonth == "All"){
+    if (input$selectMonth == "All" & input$selectAcc == "All") {
+
+      omniFiltered <- omniData %>% filter(year(Date) == input$selectYear & 
+                                          Value != 0
+                                          )
       
-    omniFiltered <- data.frame(omniData %>% filter(year(Date) == input$selectYear & Value != 0))
-    
-    }else{
+    } else if (input$selectMonth == "All" & input$selectAcc != "All") {
+
+      omniFiltered <- omniData %>% filter(year(Date) == input$selectYear &
+                                          Account == input$selectAcc &
+                                          Value != 0
+                                          )
       
-    omniFiltered <- data.frame(omniData %>% filter(year(Date) == input$selectYear & lubridate::month(omniData$Date, label = TRUE, abbr = FALSE, locale = "English") == input$selectMonth & Value != 0))
-    
+    } else if (input$selectMonth != "All" & input$selectAcc == "All") {
+
+      omniFiltered <- omniData %>% filter(year(Date) == input$selectYear &
+                                          month(Date, label = TRUE, abbr = FALSE, locale = "English") == input$selectMonth &
+                                          Value != 0
+                                          )
+      
+    } else {
+
+      omniFiltered <- omniData %>% filter(year(Date) == input$selectYear &
+                                          month(Date, label = TRUE, abbr = FALSE, locale = "English") == input$selectMonth &
+                                          Account == input$selectAcc &
+                                          Value != 0
+                                          )
     }
     
 
