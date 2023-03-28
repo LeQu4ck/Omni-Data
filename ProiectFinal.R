@@ -18,7 +18,8 @@ ui <- fluidPage(
       ),      
       helpText("Alege Luna"),
       selectInput("selectMonth", "Month :",
-                  choices = c("All","1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"),
+                  choices = c("All","January", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"),
+                  selected = "All"
       )
     ),
     mainPanel(
@@ -40,16 +41,19 @@ server <- function(input, output) {
   
   myReactiveFunction <- reactive({
     
+  
+    
     if(input$selectMonth == "All"){
       
     omniFiltered <- data.frame(omniData %>% filter(year(Date) == input$selectYear & Value != 0))
     
     }else{
       
-    omniFiltered <- data.frame(omniData %>% filter(year(Date) == input$selectYear & month(Date) == input$selectMonth & Value != 0))
+    omniFiltered <- data.frame(omniData %>% filter(year(Date) == input$selectYear & lubridate::month(omniData$Date, label = TRUE, abbr = FALSE, locale = "English") == input$selectMonth & Value != 0))
     
     }
     
+
     tabelEMEA <- data.frame(pivot_wider(omniFiltered, names_from = Date, values_from = Value, names_prefix = "")) 
     
     tabelNA <- data.frame(pivot_wider(omniFiltered, names_from = Date, values_from = Value, names_prefix = "")) 
