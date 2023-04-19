@@ -30,32 +30,32 @@ ui <- fluidPage(
       selectInput("selectAcc", "Choose account :",
                   choices = c("All", unique(omniData$Account)),
                   selected = "All"
-      ), 
-      
-      fluidRow(
-        column(12,
-               p("History plot for EMEA"),
-               plotOutput("graphEMEA")
-        ),
-        column(12,
-               p("History plot for NA"),
-               plotOutput("graphNA")
-        )
-      ),
+      )
     ),
     mainPanel(
       fluidRow(
         column(12,
                p("Tabel pentru EMEA"),
-               tableOutput("tabel_EMEA")
+               DT::dataTableOutput("tabel_EMEA")
         )
       ),
       fluidRow(
         column(12,
                p("Tabel pentru NA"),
-               tableOutput("tabel_NA")
+               DT::dataTableOutput("tabel_NA")
         )
-      )
+      ), 
+      
+      fluidRow(
+        column(6,
+               p("History plot for EMEA"),
+               plotOutput("graphEMEA")
+        ),
+        column(6,
+               p("History plot for NA"),
+               plotOutput("graphNA")
+        )
+      ),
     )
   )
   
@@ -76,9 +76,9 @@ server <- function(input, output) {
     } else if (input$selectMonth == "All" & input$selectAcc != "All") {
 
       omniFiltered <- omniData %>% filter(year(Date) == input$selectYear &
-                                          Account == input$selectAcc &
+                                          any(Account %in% input$selectAcc) &
                                           Value != 0
-                                          )
+        )
       
     } else if (input$selectMonth != "All" & input$selectAcc == "All") {
 
@@ -91,7 +91,7 @@ server <- function(input, output) {
 
       omniFiltered <- omniData %>% filter(year(Date) == input$selectYear &
                                           month(Date, label = TRUE, abbr = FALSE, locale = "English") == input$selectMonth &
-                                          Account == input$selectAcc &
+                                          any(Account %in% input$selectAcc) &
                                           Value != 0
                                           )
     }
@@ -116,8 +116,10 @@ server <- function(input, output) {
       geom_line() +
       scale_color_viridis(discrete = TRUE) +
       ylab("Sales")+ 
+      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE))+
       theme(
-        legend.position = "bottom",  
+        legend.position = "bottom",
+        legend.direction = "horizontal",
         legend.box = "horizontal",   
         legend.margin = margin(t = 10))  
     
@@ -126,8 +128,10 @@ server <- function(input, output) {
       geom_line() +
       scale_color_viridis(discrete = TRUE) +
       ylab("Sales")+ 
+      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE))+ 
       theme(
-        legend.position = "bottom",  
+        legend.position = "bottom",
+        legend.direction = "horizontal",
         legend.box = "horizontal",   
         legend.margin = margin(t = 10))  
     
@@ -136,11 +140,11 @@ server <- function(input, output) {
   })
   
   
-  output$tabel_EMEA <- renderTable({
+  output$tabel_EMEA <- renderDataTable({
     reactiveData()$tabel_EMEA
   })
   
-  output$tabel_NA <- renderTable({
+  output$tabel_NA <- renderDataTable({
     reactiveData()$tabel_NA
   })
   
