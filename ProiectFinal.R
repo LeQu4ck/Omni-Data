@@ -63,9 +63,9 @@ ui <- fluidPage(
  
 server <- function(input, output) {
   
+  omniData$Value <- round(omniData$Value, 2)
+  
   reactiveData <- reactive({
-    
-    #&input$selectMonth == "All" & 
     
     if (input$selectMonth == "All" & input$selectAcc == "All") {
 
@@ -76,7 +76,7 @@ server <- function(input, output) {
     } else if (input$selectMonth == "All" & input$selectAcc != "All") {
 
       omniFiltered <- omniData %>% filter(year(Date) == input$selectYear &
-                                          any(Account %in% input$selectAcc) &
+                                          Account == input$selectAcc &
                                           Value != 0
         )
       
@@ -91,7 +91,7 @@ server <- function(input, output) {
 
       omniFiltered <- omniData %>% filter(year(Date) == input$selectYear &
                                           month(Date, label = TRUE, abbr = FALSE, locale = "English") == input$selectMonth &
-                                          any(Account %in% input$selectAcc) &
+                                          Account == input$selectAcc &
                                           Value != 0
                                           )
     }
@@ -101,9 +101,11 @@ server <- function(input, output) {
     
     tabelNA <- data.frame(pivot_wider(omniFiltered, names_from = Date, values_from = Value, names_prefix = "")) 
     
-    tabelEMEA <- tabelEMEA %>% filter(tabelEMEA$Cluster == "EMEA")
+    tabelEMEA <- tabelEMEA %>% 
+      filter(Cluster == "EMEA")
     
-    tabelNA <- tabelNA %>% filter(tabelNA$Cluster == "NA")
+    tabelNA <- tabelNA %>% 
+      filter(Cluster == "NA") 
     
     graphDfEMEA <- omniFiltered %>% filter(Cluster == "EMEA") %>% 
       select(Date, Account, Value)
@@ -121,7 +123,8 @@ server <- function(input, output) {
         legend.position = "bottom",
         legend.direction = "horizontal",
         legend.box = "horizontal",   
-        legend.margin = margin(t = 10))  
+        legend.margin = margin(t = 10),
+        )  
     
     historyNA <- graphDfNA %>%
       ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +

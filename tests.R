@@ -17,7 +17,6 @@ View(omniFiltered)
 
 View(graphDf)
 
-# Create the plot
 historyPlot <- graphDf %>%
   ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
   geom_line() +
@@ -26,7 +25,7 @@ historyPlot <- graphDf %>%
   theme(
   legend.position = "bottom",  
   legend.box = "horizontal",   
-  legend.margin = margin(t = 10))  
+  legend.margin = margin(t = 10)) 
 
 plot(historyPlot)
 
