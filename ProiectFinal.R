@@ -65,7 +65,7 @@ server <- function(input, output) {
   
   reactiveData <- reactive({
     
-    #& input$selectMonth == "All" & input$selectAcc == "All" 
+    #&input$selectMonth == "All" & 
     
     if (input$selectMonth == "All" & input$selectAcc == "All") {
 
