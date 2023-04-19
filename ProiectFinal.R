@@ -4,6 +4,9 @@ library(lubridate)
 library(tidyr)
 library(tidyverse)
 library(DT)
+library(ggplot2)
+library(hrbrthemes)
+library(viridis)
 
 myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx"
 
@@ -13,28 +16,41 @@ ui <- fluidPage(
   
   sidebarLayout(
     sidebarPanel(
-      helpText("Alege An"),
-      selectInput("selectYear", "Years :",
+      
+      selectInput("selectYear", "Choose year :",
                   choices = c(unique(year(omniData$Date))),
                   selected = "2021"
       ),      
-      helpText("Alege Luna"),
-      selectInput("selectMonth", "Month :",
+      
+      selectInput("selectMonth", "Choose month :",
                   choices = c("All","January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"),
                   selected = "All"
       ),
-      helpText("Alege Contul"),
-      selectInput("selectAcc", "Accounts :",
-                  choices = c("All",unique(omniData$Account)),
+      
+      selectInput("selectAcc", "Choose account :",
+                  choices = c("All", unique(omniData$Account)),
                   selected = "All"
-      ),   
+      ), 
+      
+      fluidRow(
+        column(12,
+               p("History plot for EMEA"),
+               plotOutput("graphEMEA")
+        ),
+        column(12,
+               p("History plot for NA"),
+               plotOutput("graphNA")
+        )
+      ),
     ),
     mainPanel(
       fluidRow(
         column(12,
                p("Tabel pentru EMEA"),
                tableOutput("tabel_EMEA")
-        ),
+        )
+      ),
+      fluidRow(
         column(12,
                p("Tabel pentru NA"),
                tableOutput("tabel_NA")
@@ -42,11 +58,12 @@ ui <- fluidPage(
       )
     )
   )
+  
 )
  
 server <- function(input, output) {
   
-  myReactiveFunction <- reactive({
+  reactiveData <- reactive({
     
     #& input$selectMonth == "All" & input$selectAcc == "All" 
     
@@ -88,15 +105,51 @@ server <- function(input, output) {
     
     tabelNA <- tabelNA %>% filter(tabelNA$Cluster == "NA")
     
-    list(tabel_EMEA = tabelEMEA, tabel_NA = tabelNA)
+    graphDfEMEA <- omniFiltered %>% filter(Cluster == "EMEA") %>% 
+      select(Date, Account, Value)
+    
+    graphDfNA <- omniFiltered %>% filter(Cluster == "NA") %>% 
+      select(Date, Account, Value)
+    
+    historyEMEA <- graphDfEMEA %>%
+      ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
+      geom_line() +
+      scale_color_viridis(discrete = TRUE) +
+      ylab("Sales")+ 
+      theme(
+        legend.position = "bottom",  
+        legend.box = "horizontal",   
+        legend.margin = margin(t = 10))  
+    
+    historyNA <- graphDfNA %>%
+      ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
+      geom_line() +
+      scale_color_viridis(discrete = TRUE) +
+      ylab("Sales")+ 
+      theme(
+        legend.position = "bottom",  
+        legend.box = "horizontal",   
+        legend.margin = margin(t = 10))  
+    
+    list(tabel_EMEA = tabelEMEA, tabel_NA = tabelNA, graphEMEA = historyEMEA, graphNA = historyNA)
+  
   })
   
+  
   output$tabel_EMEA <- renderTable({
-    myReactiveFunction()$tabel_EMEA
+    reactiveData()$tabel_EMEA
   })
   
   output$tabel_NA <- renderTable({
-    myReactiveFunction()$tabel_NA
+    reactiveData()$tabel_NA
+  })
+  
+  output$graphEMEA <- renderPlot({
+    reactiveData()$graphEMEA
+  })
+  
+  output$graphNA <- renderPlot({
+    reactiveData()$graphNA
   })
   
 }
