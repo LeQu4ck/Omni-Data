@@ -9,11 +9,11 @@ library(hrbrthemes)
 library(viridis)
 library(shinydashboard)
 
-myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx"
+
 
 options(width=120)
 
-omniData <- read_excel(myDataLocation) %>% mutate(Date = as.Date(Date))
+
 
 ui <- dashboardPage(
   skin = "blue",
@@ -34,17 +34,16 @@ ui <- dashboardPage(
       tabItem(tabName = "istoric",
               fluidRow( 
                 
-                box(DT::dataTableOutput("tabel_EMEA"),  height = 460,width = 12)
+                box(title = "Istoric EMEA", collapsible = TRUE, solidHeader = TRUE, DT::dataTableOutput("tabel_EMEA"), width = 12),
                 
-                
-                
+                box(title = "Istoric NA", solidHeader = TRUE, collapsible = TRUE, DT::dataTableOutput("tabel_NA"), width = 12)
+
               ),
               fluidRow(
-                box(plotOutput("graphEMEA"),  height = 420, width = 6),
                 
-                box(plotOutput("graphNA"),  height = 420, width = 6),
+                box(plotOutput("graphEMEA"),  height = 450, width = 6),
                 
-                
+                box(plotOutput("graphNA"),  height = 450, width = 6),
                 
               )
       ),
@@ -62,6 +61,10 @@ ui <- dashboardPage(
 )
 
 server <- function(input, output, session) {
+  
+  myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx"
+  omniData <- read_excel(myDataLocation) %>% mutate(Date = as.Date(Date))
+  req(omniData)
   
   #primul input generat dinamic
   output$sidebar_input1 <- renderUI({
@@ -107,7 +110,13 @@ server <- function(input, output, session) {
   
   omniData$Value <- round(omniData$Value, 2)
   
+  
+  
   reactiveData <- reactive({
+    
+    req(input$selectYear)
+    req(input$selectMonth)
+    req(input$selectAcc)
     
     if (input$selectMonth == "All" & input$selectAcc == "All") {
       
@@ -158,9 +167,10 @@ server <- function(input, output, session) {
     historyEMEA <- graphDfEMEA %>%
       ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
       geom_line() +
-      scale_color_viridis(discrete = TRUE) +
-      ylab("Sales")+ 
-      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE))+
+      scale_color_viridis(discrete = TRUE)+
+      ylab("Sales") + 
+      ggtitle("EMEA Historic Data") +
+      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
       theme(
         legend.position = "bottom",
         legend.direction = "horizontal",
@@ -171,8 +181,9 @@ server <- function(input, output, session) {
     historyNA <- graphDfNA %>%
       ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
       geom_line() +
-      scale_color_viridis(discrete = TRUE) +
-      ylab("Sales")+ 
+      scale_color_viridis(discrete = TRUE)+
+      ylab("Sales") + 
+      ggtitle("NA Historic Data") +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE))+ 
       theme(
         legend.position = "bottom",
@@ -185,12 +196,14 @@ server <- function(input, output, session) {
   })
   
   
-  output$tabel_EMEA <- renderDataTable({
-    reactiveData()$tabel_EMEA
+  output$tabel_EMEA <- DT::renderDT({
+    req(reactiveData()$tabel_EMEA, cancelOutput = TRUE)
+    DT::datatable(reactiveData()$tabel_EMEA, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE))
   })
   
-  output$tabel_NA <- renderDataTable({
-    reactiveData()$tabel_NA
+  output$tabel_NA <- DT::renderDT({
+    req(reactiveData()$tabel_NA, cancelOutput = TRUE)
+    DT::datatable(reactiveData()$tabel_NA, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE))
   })
   
   output$graphEMEA <- renderPlot({
