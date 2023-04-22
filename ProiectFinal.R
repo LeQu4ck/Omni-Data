@@ -8,7 +8,7 @@ library(ggplot2)
 library(hrbrthemes)
 library(viridis)
 library(shinydashboard)
-
+library(plotly)
 
 
 options(width=120)
@@ -19,6 +19,7 @@ ui <- dashboardPage(
   skin = "blue",
   dashboardHeader(),
   dashboardSidebar(
+    
     sidebarMenu(id = "sidebar",
                 menuItem("Istoric", tabName = "istoric",  icon = icon("database")),
                 menuItem("Predictie", tabName = "predictie", icon = icon("clock")),
@@ -41,10 +42,13 @@ ui <- dashboardPage(
               ),
               fluidRow(
                 
-                box(plotOutput("graphEMEA"),  height = 450, width = 6),
+                box(plotOutput("graphEMEA", click = "plot_click1"),  height = 450, width = 6),
                 
                 box(plotOutput("graphNA"),  height = 450, width = 6),
                 
+                box(plotOutput("graphAllYears"),  height = 450, width = 12),
+                
+            
               )
       ),
       
@@ -164,9 +168,12 @@ server <- function(input, output, session) {
     graphDfNA <- omniFiltered %>% filter(Cluster == "NA") %>% 
       select(Date, Account, Value)
     
+    graphAllYears <- omniData %>% filter(Account == input$selectAcc)%>% 
+      select(Date, Account, Cluster, Value)
+    
     historyEMEA <- graphDfEMEA %>%
       ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
-      geom_line() +
+      geom_line(size = 1.2) +
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
       ggtitle("EMEA Historic Data") +
@@ -176,12 +183,11 @@ server <- function(input, output, session) {
         legend.direction = "horizontal",
         legend.box = "horizontal",   
         legend.margin = margin(t = 10),
-      )  
+      )
     
     historyNA <- graphDfNA %>%
       ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
-      geom_line() +
-      scale_color_viridis(discrete = TRUE)+
+      geom_line(size = 1.2) +
       ylab("Sales") + 
       ggtitle("NA Historic Data") +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE))+ 
@@ -189,9 +195,21 @@ server <- function(input, output, session) {
         legend.position = "bottom",
         legend.direction = "horizontal",
         legend.box = "horizontal",   
+        legend.margin = margin(t = 10))
+    
+    historyAllYears <- graphAllYears %>%
+      ggplot(aes(x=Date, y=Value, group = Cluster, color = Cluster)) +
+      geom_line(size = 1.2) +
+      ylab("Sales") + 
+      ggtitle(paste("All Years Historic Data for", input$selectAcc)) +
+      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE))+ 
+      theme(
+        legend.position = "bottom",
+        legend.direction = "horizontal",
+        legend.box = "horizontal",   
         legend.margin = margin(t = 10))  
     
-    list(tabel_EMEA = tabelEMEA, tabel_NA = tabelNA, graphEMEA = historyEMEA, graphNA = historyNA)
+    list(tabel_EMEA = tabelEMEA, tabel_NA = tabelNA, graphEMEA = historyEMEA, graphNA = historyNA, graphAllYears = historyAllYears)
     
   })
   
@@ -213,6 +231,11 @@ server <- function(input, output, session) {
   output$graphNA <- renderPlot({
     reactiveData()$graphNA
   })
+  
+  output$graphAllYears <- renderPlot({
+    reactiveData()$graphAllYears
+  })
+  
 }
 
 shinyApp(ui, server)

@@ -13,12 +13,16 @@ omniFiltered <- omniData %>% filter(year(Date) == 2020
 graphDf <- omniFiltered %>%
   filter( Cluster == "EMEA") %>%
   select(Date, Account, Value)
-View(omniFiltered)
+
+graphAllYears <- omniData %>% filter(Account == "Gross Trade Sales")%>% 
+  select(Date, Account, Cluster, Value)
+
+View(graphAllYears)
 
 View(graphDf)
 
-historyPlot <- graphDf %>%
-  ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
+historyPlot <- graphAllYears %>%
+  ggplot(aes(x=Date, y=Value, group = Cluster, color = Cluster)) +
   geom_line() +
   scale_color_viridis(discrete = TRUE) +
   ylab("Sales")+ 
