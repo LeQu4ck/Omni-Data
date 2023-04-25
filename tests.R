@@ -2,6 +2,16 @@ library(lubridate)
 library(tidyr)
 library(tidyverse)
 library(readxl)
+library(forecast)
+library(tidyr)
+library(modeltime)
+library(lubridate)
+library(tidyverse)
+library(timetk)
+library(rsample)
+library(tidymodels)      
+
+
 myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx"
 
 omniData <- read_excel(myDataLocation) %>% mutate(Date = as.Date(Date))

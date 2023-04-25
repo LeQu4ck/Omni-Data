@@ -43,9 +43,13 @@ ui <- dashboardPage(
               ),
               fluidRow(
                 
-                box(plotOutput("graphEMEA", click = "plot_click1"),  height = 450, width = 6),
+                box(plotOutput("graphEMEALgNb"),  height = 450, width = 6),
                 
-                box(plotOutput("graphNA"),  height = 450, width = 6),
+                box(plotOutput("graphNALgNb"),  height = 450, width = 6),
+                
+                box(plotOutput("graphEMEASmNb"),  height = 450, width = 6),
+                
+                box(plotOutput("graphNASmNb"),  height = 450, width = 6),
                 
                 box(plotOutput("graphAllYears"),  height = 450, width = 12),
                 
@@ -163,16 +167,22 @@ server <- function(input, output, session) {
     tabelNA <- tabelNA %>% 
       filter(Cluster == "NA") 
     
-    graphDfEMEA <- omniFiltered %>% filter(Cluster == "EMEA") %>% 
+    graphDfEMEALargeNumbers <- omniFiltered %>% filter(Cluster == "EMEA" & Account %in% c("Gross Trade Sales", "Net Trade Sales", "SGM", "OCOS")) %>% 
       select(Date, Account, Value)
     
-    graphDfNA <- omniFiltered %>% filter(Cluster == "NA") %>% 
+    graphDfNALargeNumbers <- omniFiltered %>% filter(Cluster == "NA" & Account %in% c("Gross Trade Sales", "Net Trade Sales", "SGM", "OCOS")) %>% 
+      select(Date, Account, Value)
+    
+    graphDfEMEASmallNumbers <- omniFiltered %>% filter(Cluster == "EMEA" & !Account %in% c("Gross Trade Sales", "Net Trade Sales", "SGM", "OCOS")) %>% 
+      select(Date, Account, Value)
+    
+    graphDfNASmallNumbers <- omniFiltered %>% filter(Cluster == "NA" & !Account %in% c("Gross Trade Sales", "Net Trade Sales", "SGM", "OCOS")) %>% 
       select(Date, Account, Value)
     
     graphAllYears <- omniData %>% filter(Account == input$selectAcc & Date < "2021-12-01")%>% 
       select(Date, Account, Cluster, Value)
     
-    historyEMEA <- graphDfEMEA %>%
+    historyEMEALgNb <- graphDfEMEALargeNumbers %>%
       ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
       geom_line(size = 1.2) +
       scale_color_viridis(discrete = TRUE)+
@@ -186,7 +196,33 @@ server <- function(input, output, session) {
         legend.margin = margin(t = 10),
       )
     
-    historyNA <- graphDfNA %>%
+    historyNALgNb <- graphDfNALargeNumbers %>%
+      ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
+      geom_line(size = 1.2) +
+      ylab("Sales") + 
+      ggtitle("NA Historic Data") +
+      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE))+ 
+      theme(
+        legend.position = "bottom",
+        legend.direction = "horizontal",
+        legend.box = "horizontal",   
+        legend.margin = margin(t = 10))
+    
+    historyEMEASmNb <- graphDfEMEASmallNumbers %>%
+      ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
+      geom_line(size = 1.2) +
+      scale_color_viridis(discrete = TRUE)+
+      ylab("Sales") + 
+      ggtitle("EMEA Historic Data") +
+      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
+      theme(
+        legend.position = "bottom",
+        legend.direction = "horizontal",
+        legend.box = "horizontal",   
+        legend.margin = margin(t = 10),
+      )
+    
+    historyNASmNb <- graphDfNASmallNumbers %>%
       ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
       geom_line(size = 1.2) +
       ylab("Sales") + 
@@ -210,7 +246,10 @@ server <- function(input, output, session) {
         legend.box = "horizontal",   
         legend.margin = margin(t = 10))  
     
-    list(tabel_EMEA = tabelEMEA, tabel_NA = tabelNA, graphEMEA = historyEMEA, graphNA = historyNA, graphAllYears = historyAllYears)
+    list(tabel_EMEA = tabelEMEA, tabel_NA = tabelNA, 
+         graphEMEALgNb = historyEMEALgNb, graphNALgNb = historyNALgNb, 
+         graphEMEASmNb = historyEMEASmNb, graphNASmNb = historyNASmNb, 
+         graphAllYears = historyAllYears)
     
   })
   
@@ -225,12 +264,20 @@ server <- function(input, output, session) {
     DT::datatable(reactiveData()$tabel_NA, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE))
   })
   
-  output$graphEMEA <- renderPlot({
-    reactiveData()$graphEMEA
+  output$graphEMEALgNb <- renderPlot({
+    reactiveData()$graphEMEALgNb
   })
   
-  output$graphNA <- renderPlot({
-    reactiveData()$graphNA
+  output$graphNALgNb <- renderPlot({
+    reactiveData()$graphNALgNb
+  })
+  
+  output$graphEMEASmNb <- renderPlot({
+    reactiveData()$graphEMEASmNb
+  })
+  
+  output$graphNASmNb <- renderPlot({
+    reactiveData()$graphNASmNb
   })
   
   output$graphAllYears <- renderPlot({
