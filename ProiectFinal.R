@@ -9,9 +9,10 @@ library(hrbrthemes)
 library(viridis)
 library(shinydashboard)
 library(plotly)
-
+library(shinycssloaders)
 
 options(width=120)
+options(spinner.color="#0275D8", spinner.color.background="#ffffff", spinner.size=2)
 
 
 
@@ -35,9 +36,9 @@ ui <- dashboardPage(
       tabItem(tabName = "istoric",
               fluidRow( 
                 
-                box(title = "Istoric EMEA", collapsible = TRUE, solidHeader = TRUE, DT::dataTableOutput("tabel_EMEA"), width = 12),
+                box(title = "EMEA History", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("tabel_EMEA")), width = 12),
                 
-                box(title = "Istoric NA", solidHeader = TRUE, collapsible = TRUE, DT::dataTableOutput("tabel_NA"), width = 12)
+                box(title = "NA History", solidHeader = TRUE, collapsible = TRUE, withSpinner(DT::dataTableOutput("tabel_NA")), width = 12)
 
               ),
               fluidRow(
@@ -168,7 +169,7 @@ server <- function(input, output, session) {
     graphDfNA <- omniFiltered %>% filter(Cluster == "NA") %>% 
       select(Date, Account, Value)
     
-    graphAllYears <- omniData %>% filter(Account == input$selectAcc)%>% 
+    graphAllYears <- omniData %>% filter(Account == input$selectAcc & Date < "2021-12-01")%>% 
       select(Date, Account, Cluster, Value)
     
     historyEMEA <- graphDfEMEA %>%
