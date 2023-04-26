@@ -18,7 +18,8 @@ options(spinner.color="#0275D8", spinner.color.background="#ffffff", spinner.siz
 
 ui <- dashboardPage(
   skin = "blue",
-  dashboardHeader(),
+  dashboardHeader(title = "OmniBI"
+                  ),
   dashboardSidebar(
     
     sidebarMenu(id = "sidebar",
@@ -43,17 +44,16 @@ ui <- dashboardPage(
               ),
               fluidRow(
                 
-                box(plotOutput("graphEMEALgNb"),  height = 450, width = 6),
+                box(shinycssloaders::withSpinner(plotOutput("graphEMEALgNb")),  height = 450, width = 6),
                 
-                box(plotOutput("graphNALgNb"),  height = 450, width = 6),
+                box(shinycssloaders::withSpinner(plotOutput("graphNALgNb")),  height = 450, width = 6),
                 
-                box(plotOutput("graphEMEASmNb"),  height = 450, width = 6),
+                box(shinycssloaders::withSpinner(plotOutput("graphEMEASmNb")),  height = 450, width = 6),
                 
-                box(plotOutput("graphNASmNb"),  height = 450, width = 6),
+                box(shinycssloaders::withSpinner(plotOutput("graphNASmNb")),  height = 450, width = 6),
                 
-                box(plotOutput("graphAllYears"),  height = 450, width = 12),
-                
-            
+                box(shinycssloaders::withSpinner(plotOutput("graphAllYears")),  height = 450, width = 12)
+              
               )
       ),
       
@@ -69,11 +69,12 @@ ui <- dashboardPage(
   )
 )
 
-server <- function(input, output, session) {
+server <- function(input, output) {
   
   myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx"
   omniData <- read_excel(myDataLocation) %>% mutate(Date = as.Date(Date))
-  req(omniData)
+  
+  acc <- unique(omniData$Account)
   
   #primul input generat dinamic
   output$sidebar_input1 <- renderUI({
@@ -181,13 +182,13 @@ server <- function(input, output, session) {
     
     graphAllYears <- omniData %>% filter(Account == input$selectAcc & Date < "2021-12-01")%>% 
       select(Date, Account, Cluster, Value)
-    
+
     historyEMEALgNb <- graphDfEMEALargeNumbers %>%
       ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
       geom_line(size = 1.2) +
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
-      ggtitle("EMEA Historic Data") +
+      ggtitle(paste("EMEA Historic Data for", input$selectYear)) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
       theme(
         legend.position = "bottom",
@@ -200,7 +201,7 @@ server <- function(input, output, session) {
       ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
       geom_line(size = 1.2) +
       ylab("Sales") + 
-      ggtitle("NA Historic Data") +
+      ggtitle(paste("NA Historic Data for", input$selectYear)) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE))+ 
       theme(
         legend.position = "bottom",
@@ -213,7 +214,7 @@ server <- function(input, output, session) {
       geom_line(size = 1.2) +
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
-      ggtitle("EMEA Historic Data") +
+      ggtitle(paste("EMEA Historic Data for", input$selectYear)) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
       theme(
         legend.position = "bottom",
@@ -226,7 +227,7 @@ server <- function(input, output, session) {
       ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
       geom_line(size = 1.2) +
       ylab("Sales") + 
-      ggtitle("NA Historic Data") +
+      ggtitle(paste("NA Historic Data for", input$selectYear)) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE))+ 
       theme(
         legend.position = "bottom",
@@ -244,12 +245,14 @@ server <- function(input, output, session) {
         legend.position = "bottom",
         legend.direction = "horizontal",
         legend.box = "horizontal",   
-        legend.margin = margin(t = 10))  
+        legend.margin = margin(t = 10),
+        plot.title = element_text(size = 24))  
     
     list(tabel_EMEA = tabelEMEA, tabel_NA = tabelNA, 
          graphEMEALgNb = historyEMEALgNb, graphNALgNb = historyNALgNb, 
          graphEMEASmNb = historyEMEASmNb, graphNASmNb = historyNASmNb, 
-         graphAllYears = historyAllYears)
+         graphAllYears = historyAllYears
+         )
     
   })
   
@@ -283,7 +286,7 @@ server <- function(input, output, session) {
   output$graphAllYears <- renderPlot({
     reactiveData()$graphAllYears
   })
-  
+
 }
 
 shinyApp(ui, server)
