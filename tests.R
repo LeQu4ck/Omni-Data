@@ -17,10 +17,12 @@ myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx"
 omniData <- read_excel(myDataLocation) %>% mutate(Date = as.Date(Date))
 tabelEMEA <- data.frame(pivot_wider(omniData, names_from = Date, values_from = Value, names_prefix = "")) 
 
-omniFiltered <- omniData %>% filter(year(Date) == 2020
-)
 
-loopDF <- omniData %>% filter(year(Date) == "2021" & Cluster == "EMEA")
+omniFiltered <- omniData %>% filter(year(Date) == 2020 & grepl("(SG&A|FX Other)", Account))
+
+View(omniFiltered)
+
+ loopDF <- omniData %>% filter(year(Date) == "2021" & Cluster == "EMEA")
 dfTemp <- loopDF %>% filter(Account == "Gross Trade Sales")
 plotList <- list()
 
