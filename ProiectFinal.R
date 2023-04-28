@@ -11,10 +11,7 @@ library(shinydashboard)
 library(plotly)
 library(shinycssloaders)
 
-options(width=120)
 options(spinner.color="#0275D8", spinner.color.background="#ffffff", spinner.size=2)
-
-
 
 ui <- dashboardPage(
   skin = "blue",
@@ -39,7 +36,7 @@ ui <- dashboardPage(
                 
                 box(title = "EMEA History", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("tabel_EMEA")), width = 12),
                 
-                box(title = "NA History", solidHeader = TRUE, collapsible = TRUE, withSpinner(DT::dataTableOutput("tabel_NA")), width = 12)
+                box(title = "NA History", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("tabel_NA")), width = 12)
 
               ),
               fluidRow(
@@ -119,9 +116,7 @@ server <- function(input, output) {
   }) 
   
   omniData$Value <- round(omniData$Value, 2)
-  
-  
-  
+
   reactiveData <- reactive({
     
     req(input$selectYear)
@@ -157,7 +152,6 @@ server <- function(input, output) {
       )
     }
     
-    
     tabelEMEA <- data.frame(pivot_wider(omniFiltered, names_from = Date, values_from = Value, names_prefix = "")) 
     
     tabelNA <- data.frame(pivot_wider(omniFiltered, names_from = Date, values_from = Value, names_prefix = "")) 
@@ -186,6 +180,7 @@ server <- function(input, output) {
     historyEMEALgNb <- graphDfEMEALargeNumbers %>%
       ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
       geom_line(size = 1.2) +
+      geom_point(size = 4) +
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
       ggtitle(paste("EMEA Historic Data for", input$selectYear)) +
@@ -202,7 +197,7 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       ylab("Sales") + 
       ggtitle(paste("NA Historic Data for", input$selectYear)) +
-      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE))+ 
+      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) + 
       theme(
         legend.position = "bottom",
         legend.direction = "horizontal",
@@ -253,7 +248,6 @@ server <- function(input, output) {
          graphEMEASmNb = historyEMEASmNb, graphNASmNb = historyNASmNb, 
          graphAllYears = historyAllYears
          )
-    
   })
   
   
