@@ -11,13 +11,18 @@ library(shinydashboard)
 library(plotly)
 library(shinycssloaders)
 library(stringr)
+library(forecast)
+library(modeltime)
+library(timetk)
+library(rsample)
+library(tidymodels) 
 
 options(spinner.color="#0275D8", spinner.color.background="#ffffff", spinner.size=2)
 
 ui <- dashboardPage(
   skin = "blue",
   dashboardHeader(title = "OmniBI"
-                  ),
+  ),
   dashboardSidebar(
     
     sidebarMenu(id = "sidebar",
@@ -38,7 +43,7 @@ ui <- dashboardPage(
                 box(title = "EMEA History", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("tabel_EMEA")), width = 12),
                 
                 box(title = "NA History", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("tabel_NA")), width = 12)
-
+                
               ),
               fluidRow(
                 
@@ -65,7 +70,14 @@ ui <- dashboardPage(
       
       # Second tab content
       tabItem(tabName = "predictie",
-              h2("Predictie date")
+              fluidRow(
+                box(title = "Prediction table EMEA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("tabel_predictie"))),
+                box(title = "Prediction table NA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput(""))),
+                box(title = "Prediction table NA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput(""))),
+                box(title = "Prediction table NA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput(""))),
+                
+              )
+              
       ),
       # Thrid tab content
       tabItem(tabName = "3rdtab",
@@ -77,6 +89,7 @@ ui <- dashboardPage(
 
 server <- function(input, output) {
   
+  #myDataLocation <-"C:/Users/ocris/Desktop/omni.xlsx"
   myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx"
   omniData <- read_excel(myDataLocation) %>% mutate(Date = as.Date(Date))
   
@@ -90,7 +103,9 @@ server <- function(input, output) {
                   selected = "2021"
       )
     } else if (input$sidebar == "predictie") {
-      textInput("input1", "input 2 gen")
+      selectInput("predictAccount", "Choose an account: ",
+                  choices = c(unique(omniData$Account)),
+                  selected = "Gross Trade Sales")
     } else if (input$sidebar == "3rdtab") {
       textInput("input1", "input 3 gen")
     }
@@ -104,7 +119,7 @@ server <- function(input, output) {
                   selected = "All"
       )
     } else if (input$sidebar == "predictie") {
-      textInput("input2", "input 2 tab2")
+      actionButton("predict", "Predict")
     } else if (input$sidebar == "3rdtab") {
       textInput("input2", "input 2 tab3")
     }
@@ -118,14 +133,14 @@ server <- function(input, output) {
                   selected = "All"
       )
     } else if (input$sidebar == "predictie") {
-      textInput("input3", "input 3 tab2")
+      #textInput("input3", "input 3 tab2")
     } else if (input$sidebar == "3rdtab") {
       textInput("input3", "input 3 tab3")
     }
   }) 
   
   omniData$Value <- round(omniData$Value, 2)
-
+  
   reactiveData <- reactive({
     
     req(input$selectYear)
@@ -197,14 +212,14 @@ server <- function(input, output) {
     
     graphAllYears <- omniData %>% filter(Account == input$selectAcc & Date < "2021-12-01")%>% 
       select(Date, Account, Cluster, Value)
-
+    
     historyGraphSet1EMEA <- dfGraphSet1EMEA %>%
       ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
-      ggtitle(paste("EMEA Historic Data for", input$selectYear)) +
+      ggtitle(paste(input$selectYear, "EMEA Historic Data for Gross Trade Sales, Net Trade Sales and SGM"))+
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
       theme(
         legend.position = "bottom",
@@ -218,7 +233,7 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       ylab("Sales") + 
-      ggtitle(paste("NA Historic Data for", input$selectYear)) +
+      ggtitle(paste(input$selectYear, "NA Historic Data for Gross Trade Sales, Net Trade Sales and SGM")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) + 
       theme(
         legend.position = "bottom",
@@ -232,7 +247,7 @@ server <- function(input, output) {
       geom_point(size = 4) +
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
-      ggtitle(paste("EMEA Historic Data for", input$selectYear)) +
+      ggtitle(paste(input$selectYear, "EMEA Historic Data for OCOS")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
       theme(
         legend.position = "bottom",
@@ -246,7 +261,7 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       ylab("Sales") + 
-      ggtitle(paste("NA Historic Data for", input$selectYear)) +
+      ggtitle(paste(input$selectYear, "NA Historic Data for OCOS")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) + 
       theme(
         legend.position = "bottom",
@@ -260,7 +275,7 @@ server <- function(input, output) {
       geom_point(size = 4) +
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
-      ggtitle(paste("EMEA Historic Data for", input$selectYear)) +
+      ggtitle(paste(input$selectYear, "EMEA Historic Data for SG&A and FX Other")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
       theme(
         legend.position = "bottom",
@@ -274,7 +289,7 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       ylab("Sales") + 
-      ggtitle(paste("NA Historic Data for", input$selectYear)) +
+      ggtitle(paste(input$selectYear, "NA Historic Data for SG&A and FX Other")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) + 
       theme(
         legend.position = "bottom",
@@ -288,7 +303,7 @@ server <- function(input, output) {
       geom_point(size = 4) +
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
-      ggtitle(paste("EMEA Historic Data for", input$selectYear)) +
+      ggtitle(paste(input$selectYear, "EMEA Historic Data for Trade OM")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
       theme(
         legend.position = "bottom",
@@ -302,14 +317,14 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       ylab("Sales") + 
-      ggtitle(paste("NA Historic Data for", input$selectYear)) +
+      ggtitle(paste(input$selectYear, "NA Historic Data for SG&A and Trade OM")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) + 
       theme(
         legend.position = "bottom",
         legend.direction = "horizontal",
         legend.box = "horizontal",   
         legend.margin = margin(t = 10))
-
+    
     historyAllYears <- graphAllYears %>%
       ggplot(aes(x=Date, y=Value, group = Cluster, color = Cluster)) +
       geom_line(size = 1.2) +
@@ -329,8 +344,101 @@ server <- function(input, output) {
          graphEMEASet3 = historyGraphSet3EMEA, graphNASet3 = historyGraphSet3NA, 
          graphEMEASet4 = historyGraphSet4EMEA, graphNASet4 = historyGraphSet4NA, 
          graphAllYears = historyAllYears
-         )
+    )
   })
+  
+  
+  observeEvent(input$predict, {
+    omniDataEMEA <- omniData %>% filter(Cluster == "EMEA" & Account == input$predictAccount & Date < '2021-12-01')
+    omniDataEMEA <- data.frame(pivot_wider(omniDataEMEA, names_from = Account, values_from = Value))
+    omniDataEMEA <- omniDataEMEA %>% select(-c("Cluster"))
+    
+    for(i in 2:ncol(omniDataEMEA)){
+      omniDataEMEA[i] <- as.numeric(tsclean(omniDataEMEA[[i]], replace.missing = TRUE, lambda = "auto"))
+    }
+    
+    forecastPeriod <- 13
+    dummyDF <- data.frame(Timeseries = character(), Model = character(), Date = character(), Forecast = character())
+    
+    for(i in 2:ncol(omniDataEMEA)){
+      
+      #Prepare data
+      mainDataForecast <- cbind(omniDataEMEA[1], omniDataEMEA[i])
+      colnames(mainDataForecast)[2] <- "Values"
+      
+      splits <- initial_time_split(mainDataForecast, prop=0.75)
+      
+      #create and fit models
+      #Nnetar
+      model_fit_NNETAR <- nnetar_reg() %>%
+        set_engine("nnetar") %>%
+        fit(Values ~ Date, data = training(splits))
+      
+      
+      models_tbl <- modeltime_table(
+        model_fit_NNETAR
+      )
+      
+      #Calibrate model to testing set
+      calibration_tbl <- models_tbl %>% 
+        modeltime_calibrate(
+          new_data = testing(splits)
+        )
+      
+      #visual 
+      calibration_tbl %>% 
+        modeltime_forecast(
+          new_data = testing(splits),
+          actual_data =  mainDataForecast
+        ) %>% 
+        plot_modeltime_forecast(
+          .legend_max_width = 25
+        )
+      
+      #metrics
+      calibration_tbl %>% 
+        modeltime_accuracy() %>% 
+        table_modeltime_accuracy()
+      
+      #Forecast
+      refit_tbl <- calibration_tbl %>% 
+        modeltime_refit( data = mainDataForecast )
+      
+      refit_tbl %>% 
+        modeltime_forecast(h = forecastPeriod, actual_data = mainDataForecast) %>% 
+        plot_modeltime_forecast((
+          .legend_ma_width = 25
+        ))
+      
+      final_forecast <- refit_tbl %>% 
+        modeltime_forecast( h = forecastPeriod, actual_data = mainDataForecast) %>% 
+        filter(.key=="prediction")
+      
+      final_forecast <- subset(final_forecast, select = c(.model_desc, .index, .value))
+      
+      final_forecast[1:forecastPeriod, 1] <- "NNETAR"
+      
+      final_forecast <- cbind(as.data.frame(colnames(omniDataEMEA[i])), final_forecast)
+      
+      colnames(final_forecast)[1] <- "Timeseries"
+      colnames(final_forecast)[2] <- "Model"
+      colnames(final_forecast)[3] <- "Date"
+      colnames(final_forecast)[4] <- "Forecast"
+      
+      #final data
+      dummyDF <- data.frame(rbind(as.matrix(dummyDF), as.matrix(final_forecast)))
+      
+    }
+    
+    #FINAL FORECAST
+    finalDf <- dummyDF[which(dummyDF$Model == "NNETAR"),]
+    outputFinalDF <- data.frame(pivot_wider(finalDf, names_from = Date, values_from = Forecast)) 
+    output$tabel_predictie <- DT::renderDT({
+      req(outputFinalDF)
+      DT::datatable(outputFinalDF, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE), caption = input$predictAccount )
+    })
+  })
+  
   
   output$tabel_EMEA <- DT::renderDT({
     req(reactiveData()$tabel_EMEA, cancelOutput = TRUE)
@@ -377,7 +485,7 @@ server <- function(input, output) {
   output$graphAllYears <- renderPlot({
     reactiveData()$graphAllYears
   })
-
+  
 }
 
 shinyApp(ui, server)

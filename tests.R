@@ -22,7 +22,7 @@ omniFiltered <- omniData %>% filter(year(Date) == 2020 & grepl("(SG&A|FX Other)"
 
 View(omniFiltered)
 
- loopDF <- omniData %>% filter(year(Date) == "2021" & Cluster == "EMEA")
+loopDF <- omniData %>% filter(year(Date) == "2021" & Cluster == "EMEA")
 dfTemp <- loopDF %>% filter(Account == "Gross Trade Sales")
 plotList <- list()
 
