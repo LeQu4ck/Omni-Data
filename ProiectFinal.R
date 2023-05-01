@@ -71,10 +71,13 @@ ui <- dashboardPage(
       # Second tab content
       tabItem(tabName = "predictie",
               fluidRow(
-                box(title = "Prediction table EMEA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("tabel_predictie"))),
-                box(title = "Prediction table NA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput(""))),
-                box(title = "Prediction table NA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput(""))),
-                box(title = "Prediction table NA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput(""))),
+                box(title = "Prediction table EMEA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("predictie_EMEA")),  width = 12),
+                box(title = "Prediction table NA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("predictie_NA")),  width = 12)
+              ),
+              fluidRow(
+                
+                box(shinycssloaders::withSpinner(plotOutput("predictieEMEAgraph")),  height = 450, width = 6),
+                box(shinycssloaders::withSpinner(plotOutput("predictieNAgraph")),  height = 450, width = 6)
                 
               )
               
@@ -89,8 +92,9 @@ ui <- dashboardPage(
 
 server <- function(input, output) {
   
-  #myDataLocation <-"C:/Users/ocris/Desktop/omni.xlsx"
-  myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx"
+  #myDataLocation <-"C:/Users/ocris/Desktop/omni.xlsx" 
+  #myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx" 
+  myDataLocation <-"C:/Users/flori/OneDrive/Desktop/Omni-Data-main/Omni_Data.xlsx"
   omniData <- read_excel(myDataLocation) %>% mutate(Date = as.Date(Date))
   
   acc <- unique(omniData$Account)
@@ -347,8 +351,10 @@ server <- function(input, output) {
     )
   })
   
-  
+  #####################################INCEPUT FORECAST########################################
   observeEvent(input$predict, {
+    
+    ###FORECAST EMEA
     omniDataEMEA <- omniData %>% filter(Cluster == "EMEA" & Account == input$predictAccount & Date < '2021-12-01')
     omniDataEMEA <- data.frame(pivot_wider(omniDataEMEA, names_from = Account, values_from = Value))
     omniDataEMEA <- omniDataEMEA %>% select(-c("Cluster"))
@@ -358,7 +364,7 @@ server <- function(input, output) {
     }
     
     forecastPeriod <- 13
-    dummyDF <- data.frame(Timeseries = character(), Model = character(), Date = character(), Forecast = character())
+    dummyDFEmea <- data.frame(Timeseries = character(), Model = character(), Date = character(), Forecast = character())
     
     for(i in 2:ncol(omniDataEMEA)){
       
@@ -426,18 +432,167 @@ server <- function(input, output) {
       colnames(final_forecast)[4] <- "Forecast"
       
       #final data
-      dummyDF <- data.frame(rbind(as.matrix(dummyDF), as.matrix(final_forecast)))
+      dummyDFEmea <- data.frame(rbind(as.matrix(dummyDFEmea), as.matrix(final_forecast)))
       
     }
     
-    #FINAL FORECAST
-    finalDf <- dummyDF[which(dummyDF$Model == "NNETAR"),]
-    outputFinalDF <- data.frame(pivot_wider(finalDf, names_from = Date, values_from = Forecast)) 
-    output$tabel_predictie <- DT::renderDT({
-      req(outputFinalDF)
-      DT::datatable(outputFinalDF, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE), caption = input$predictAccount )
+    #FINAL FORECAST EMEA
+    finalDfEmea <- dummyDFEmea[which(dummyDFEmea$Model == "NNETAR"),]
+    outputFinalDFEmea <- data.frame(pivot_wider(finalDfEmea, names_from = Date, values_from = Forecast)) 
+    
+    
+    ################################FORECAST NA#####################################################3
+    omniDataEMEA <- omniData %>% filter(Cluster == "NA" & Account == input$predictAccount & Date < '2021-12-01')
+    omniDataEMEA <- data.frame(pivot_wider(omniDataEMEA, names_from = Account, values_from = Value))
+    omniDataEMEA <- omniDataEMEA %>% select(-c("Cluster"))
+    
+    for(i in 2:ncol(omniDataEMEA)){
+      omniDataEMEA[i] <- as.numeric(tsclean(omniDataEMEA[[i]], replace.missing = TRUE, lambda = "auto"))
+    }
+    
+    forecastPeriod <- 13
+    dummyDFNa <- data.frame(Timeseries = character(), Model = character(), Date = character(), Forecast = character())
+    
+    for(i in 2:ncol(omniDataEMEA)){
+      
+      #Prepare data
+      mainDataForecast <- cbind(omniDataEMEA[1], omniDataEMEA[i])
+      colnames(mainDataForecast)[2] <- "Values"
+      
+      splits <- initial_time_split(mainDataForecast, prop=0.75)
+      
+      #create and fit models
+      #Nnetar
+      model_fit_NNETAR <- nnetar_reg() %>%
+        set_engine("nnetar") %>%
+        fit(Values ~ Date, data = training(splits))
+      
+      
+      models_tbl <- modeltime_table(
+        model_fit_NNETAR
+      )
+      
+      #Calibrate model to testing set
+      calibration_tbl <- models_tbl %>% 
+        modeltime_calibrate(
+          new_data = testing(splits)
+        )
+      
+      #visual 
+      calibration_tbl %>% 
+        modeltime_forecast(
+          new_data = testing(splits),
+          actual_data =  mainDataForecast
+        ) %>% 
+        plot_modeltime_forecast(
+          .legend_max_width = 25
+        )
+      
+      #metrics
+      calibration_tbl %>% 
+        modeltime_accuracy() %>% 
+        table_modeltime_accuracy()
+      
+      #Forecast
+      refit_tbl <- calibration_tbl %>% 
+        modeltime_refit( data = mainDataForecast )
+      
+      refit_tbl %>% 
+        modeltime_forecast(h = forecastPeriod, actual_data = mainDataForecast) %>% 
+        plot_modeltime_forecast((
+          .legend_ma_width = 25
+        ))
+      
+      final_forecast <- refit_tbl %>% 
+        modeltime_forecast( h = forecastPeriod, actual_data = mainDataForecast) %>% 
+        filter(.key=="prediction")
+      
+      final_forecast <- subset(final_forecast, select = c(.model_desc, .index, .value))
+      
+      final_forecast[1:forecastPeriod, 1] <- "NNETAR"
+      
+      final_forecast <- cbind(as.data.frame(colnames(omniDataEMEA[i])), final_forecast)
+      
+      colnames(final_forecast)[1] <- "Timeseries"
+      colnames(final_forecast)[2] <- "Model"
+      colnames(final_forecast)[3] <- "Date"
+      colnames(final_forecast)[4] <- "Forecast"
+      
+      #final data
+      dummyDFNa <- data.frame(rbind(as.matrix(dummyDFNa), as.matrix(final_forecast)))
+      
+    }
+    
+    #FINAL FORECAST NA
+    finalDFNa <- dummyDFNa[which(dummyDFNa$Model == "NNETAR"),]
+    outputfinalDFNa <- data.frame(pivot_wider(finalDFNa, names_from = Date, values_from = Forecast)) 
+    
+    
+    ##############3#OUTPUT NA AND EMEA FOREASTS##########################################################################################
+    ##TABLE OUTPUT####
+    output$predictie_EMEA <- DT::renderDT({
+      req(outputFinalDFEmea)
+      DT::datatable(outputFinalDFEmea, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE), caption = input$predictAccount )
+    })
+    
+    output$predictie_NA <- DT::renderDT({
+      req(outputfinalDFNa)
+      DT::datatable(outputfinalDFNa, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE), caption = input$predictAccount )
+    })
+    
+    # ##GRAPH OUTPUT####
+    # 
+    #   dfGraphPredictEMEA <- finalDfEmea  %>% 
+    #   select(Date, Forecast)
+    #   
+    # 
+    # 
+    #   dfGraphPredictNA <- finalDFNa  %>% 
+    #   select(Date, Forecast)
+    # 
+    
+    # ##History for graphs
+    #       HistorydfGraphPredictEMEA <- dfGraphPredictEMEA %>%
+    #       ggplot(aes(x=Date, y=Forecast)) +
+    #       geom_line(size = 1.2) +
+    #       ggtitle(paste(input$predictAccount, "prediction for EMEA"))
+    # 
+    #       HistorydfGraphPredictNA <- dfGraphPredictNA %>%
+    #       ggplot(aes(x=Date, y=Forecast)) +
+    #       geom_line(size = 1.2) +
+    #       ggtitle(paste(input$predictAccount, "prediction for NA")) 
+    # 
+    # list(predictEMEA = HistorydfGraphPredictEMEA, predictNA = HistorydfGraphPredictNA )
+    
+    
+    #################OUTPUT GRAFICE PREZICERE######################################
+    output$predictieEMEAgraph <- renderPlot({
+      dfGraphPredictEMEA <- finalDfEmea %>% 
+        mutate(Date = as.Date(Date, format = "%Y-%m-%d")) %>% # convert to date format
+        select(Date, Forecast)
+      ggplot(dfGraphPredictEMEA, aes(x = Date, y = Forecast, group = 1, color = "EMEA")) +
+        geom_line(size = 1.2) +
+        geom_point(size = 4) +
+        ggtitle(paste(input$predictAccount, "prediction for EMEA")) +
+        scale_color_manual(values = c("EMEA" = "red")) + 
+        labs(color = "Region")
+    })
+    
+    output$predictieNAgraph <- renderPlot({
+      dfGraphPredictNA <- finalDFNa %>% 
+        mutate(Date = as.Date(Date, format = "%Y-%m-%d")) %>% # convert to date format
+        select(Date, Forecast)
+      ggplot(dfGraphPredictNA, aes(x = Date, y = Forecast, group = 1, color = "NA")) +
+        geom_line(size = 1.2) +
+        geom_point(size = 4) +
+        ggtitle(paste(input$predictAccount, "prediction for NA")) +
+        scale_color_manual(values = c("NA" = "blue")) + 
+        labs(color = "Region")
     })
   })
+  
+  #REACTIVE DATA
+  
   
   
   output$tabel_EMEA <- DT::renderDT({
@@ -485,6 +640,9 @@ server <- function(input, output) {
   output$graphAllYears <- renderPlot({
     reactiveData()$graphAllYears
   })
+  
+  
+  
   
 }
 
