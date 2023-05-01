@@ -93,8 +93,8 @@ ui <- dashboardPage(
 server <- function(input, output) {
   
   #myDataLocation <-"C:/Users/ocris/Desktop/omni.xlsx" 
-  #myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx" 
-  myDataLocation <-"C:/Users/flori/OneDrive/Desktop/Omni-Data-main/Omni_Data.xlsx"
+  myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx" 
+  #myDataLocation <-"C:/Users/flori/OneDrive/Desktop/Omni-Data-main/Omni_Data.xlsx"
   omniData <- read_excel(myDataLocation) %>% mutate(Date = as.Date(Date))
   
   acc <- unique(omniData$Account)
@@ -354,8 +354,11 @@ server <- function(input, output) {
   #####################################INCEPUT FORECAST########################################
   observeEvent(input$predict, {
     
+    account <- input$predictAccount
+    
     ###FORECAST EMEA
-    omniDataEMEA <- omniData %>% filter(Cluster == "EMEA" & Account == input$predictAccount & Date < '2021-12-01')
+
+    omniDataEMEA <- omniData %>% filter(Cluster == "EMEA" & Account == account & Date < '2021-12-01')
     omniDataEMEA <- data.frame(pivot_wider(omniDataEMEA, names_from = Account, values_from = Value))
     omniDataEMEA <- omniDataEMEA %>% select(-c("Cluster"))
     
@@ -442,21 +445,21 @@ server <- function(input, output) {
     
     
     ################################FORECAST NA#####################################################3
-    omniDataEMEA <- omniData %>% filter(Cluster == "NA" & Account == input$predictAccount & Date < '2021-12-01')
-    omniDataEMEA <- data.frame(pivot_wider(omniDataEMEA, names_from = Account, values_from = Value))
-    omniDataEMEA <- omniDataEMEA %>% select(-c("Cluster"))
+    omniDataNA <- omniData %>% filter(Cluster == "NA" & Account == account & Date < '2021-12-01')
+    omniDataNA <- data.frame(pivot_wider(omniDataNA, names_from = Account, values_from = Value))
+    omniDataNA <- omniDataNA %>% select(-c("Cluster"))
     
-    for(i in 2:ncol(omniDataEMEA)){
-      omniDataEMEA[i] <- as.numeric(tsclean(omniDataEMEA[[i]], replace.missing = TRUE, lambda = "auto"))
+    for(i in 2:ncol(omniDataNA)){
+      omniDataNA[i] <- as.numeric(tsclean(omniDataNA[[i]], replace.missing = TRUE, lambda = "auto"))
     }
     
     forecastPeriod <- 13
     dummyDFNa <- data.frame(Timeseries = character(), Model = character(), Date = character(), Forecast = character())
     
-    for(i in 2:ncol(omniDataEMEA)){
+    for(i in 2:ncol(omniDataNA)){
       
       #Prepare data
-      mainDataForecast <- cbind(omniDataEMEA[1], omniDataEMEA[i])
+      mainDataForecast <- cbind(omniDataNA[1], omniDataNA[i])
       colnames(mainDataForecast)[2] <- "Values"
       
       splits <- initial_time_split(mainDataForecast, prop=0.75)
@@ -511,7 +514,7 @@ server <- function(input, output) {
       
       final_forecast[1:forecastPeriod, 1] <- "NNETAR"
       
-      final_forecast <- cbind(as.data.frame(colnames(omniDataEMEA[i])), final_forecast)
+      final_forecast <- cbind(as.data.frame(colnames(omniDataNA[i])), final_forecast)
       
       colnames(final_forecast)[1] <- "Timeseries"
       colnames(final_forecast)[2] <- "Model"
@@ -527,43 +530,17 @@ server <- function(input, output) {
     finalDFNa <- dummyDFNa[which(dummyDFNa$Model == "NNETAR"),]
     outputfinalDFNa <- data.frame(pivot_wider(finalDFNa, names_from = Date, values_from = Forecast)) 
     
-    
     ##############3#OUTPUT NA AND EMEA FOREASTS##########################################################################################
     ##TABLE OUTPUT####
     output$predictie_EMEA <- DT::renderDT({
       req(outputFinalDFEmea)
-      DT::datatable(outputFinalDFEmea, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE), caption = input$predictAccount )
+      DT::datatable(outputFinalDFEmea, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE), caption = account )
     })
     
     output$predictie_NA <- DT::renderDT({
       req(outputfinalDFNa)
-      DT::datatable(outputfinalDFNa, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE), caption = input$predictAccount )
+      DT::datatable(outputfinalDFNa, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE), caption = account )
     })
-    
-    # ##GRAPH OUTPUT####
-    # 
-    #   dfGraphPredictEMEA <- finalDfEmea  %>% 
-    #   select(Date, Forecast)
-    #   
-    # 
-    # 
-    #   dfGraphPredictNA <- finalDFNa  %>% 
-    #   select(Date, Forecast)
-    # 
-    
-    # ##History for graphs
-    #       HistorydfGraphPredictEMEA <- dfGraphPredictEMEA %>%
-    #       ggplot(aes(x=Date, y=Forecast)) +
-    #       geom_line(size = 1.2) +
-    #       ggtitle(paste(input$predictAccount, "prediction for EMEA"))
-    # 
-    #       HistorydfGraphPredictNA <- dfGraphPredictNA %>%
-    #       ggplot(aes(x=Date, y=Forecast)) +
-    #       geom_line(size = 1.2) +
-    #       ggtitle(paste(input$predictAccount, "prediction for NA")) 
-    # 
-    # list(predictEMEA = HistorydfGraphPredictEMEA, predictNA = HistorydfGraphPredictNA )
-    
     
     #################OUTPUT GRAFICE PREZICERE######################################
     output$predictieEMEAgraph <- renderPlot({
@@ -573,7 +550,7 @@ server <- function(input, output) {
       ggplot(dfGraphPredictEMEA, aes(x = Date, y = Forecast, group = 1, color = "EMEA")) +
         geom_line(size = 1.2) +
         geom_point(size = 4) +
-        ggtitle(paste(input$predictAccount, "prediction for EMEA")) +
+        ggtitle(paste(account, "prediction for EMEA")) +
         scale_color_manual(values = c("EMEA" = "red")) + 
         labs(color = "Region")
     })
@@ -585,16 +562,13 @@ server <- function(input, output) {
       ggplot(dfGraphPredictNA, aes(x = Date, y = Forecast, group = 1, color = "NA")) +
         geom_line(size = 1.2) +
         geom_point(size = 4) +
-        ggtitle(paste(input$predictAccount, "prediction for NA")) +
+        ggtitle(paste(account, "prediction for NA")) +
         scale_color_manual(values = c("NA" = "blue")) + 
         labs(color = "Region")
     })
   })
   
   #REACTIVE DATA
-  
-  
-  
   output$tabel_EMEA <- DT::renderDT({
     req(reactiveData()$tabel_EMEA, cancelOutput = TRUE)
     DT::datatable(reactiveData()$tabel_EMEA, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE))
@@ -640,10 +614,7 @@ server <- function(input, output) {
   output$graphAllYears <- renderPlot({
     reactiveData()$graphAllYears
   })
-  
-  
-  
-  
+
 }
 
 shinyApp(ui, server)
