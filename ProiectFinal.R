@@ -16,11 +16,14 @@ library(modeltime)
 library(timetk)
 library(rsample)
 library(tidymodels) 
+library(shinyjs)
+library(shinyWidgets)
 
-options(spinner.color="#0275D8", spinner.color.background="#ffffff", spinner.size=2)
+options(spinner.color="#2596be", spinner.color.background="#ffffff", spinner.size=1.4)
 
 ui <- dashboardPage(
   skin = "blue",
+  
   dashboardHeader(title = "OmniBI"
   ),
   dashboardSidebar(
@@ -30,11 +33,44 @@ ui <- dashboardPage(
                 menuItem("Predictie", tabName = "predictie", icon = icon("clock")),
                 menuItem("Al 3 lea tab", tabName = "3rdtab", icon = icon("dice"))
     ),
+    
     uiOutput("sidebar_input1"),
     uiOutput("sidebar_input2"),
-    uiOutput("sidebar_input3")
+    uiOutput("sidebar_input3"),
+    actionBttn("selectData", "Select Data Set")
+    
   ),
   dashboardBody(
+    tags$head(
+      tags$style(HTML("
+        .modal-header {
+          background-color: #2596be;
+          color: #ffffff;
+        }
+        .modal-title {
+          font-weight: bold;
+          font-size: 2rem;
+        }
+        .modal-footer {
+          background-color: #222d32;
+        }
+        .modal-body {
+          background-color: #222d32;
+        }
+        .modal-content {
+          border-radius: 1rem;
+          box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        #ok {
+          background-color: #2596be;
+          color: #ffffff;
+        }
+        .close-modal-btn {
+          background-color: red;
+          color: #ffffff;
+        }
+      "))
+    ),
     tabItems( 
       # First tab content
       tabItem(tabName = "istoric",
@@ -70,18 +106,24 @@ ui <- dashboardPage(
       
       # Second tab content
       tabItem(tabName = "predictie",
+              
               fluidRow(
+                
                 box(title = "Prediction table EMEA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("predictie_EMEA")),  width = 12),
+                
                 box(title = "Prediction table NA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("predictie_NA")),  width = 12)
+                
               ),
+              
               fluidRow(
                 
                 box(shinycssloaders::withSpinner(plotOutput("predictieEMEAgraph")),  height = 450, width = 6),
+                
                 box(shinycssloaders::withSpinner(plotOutput("predictieNAgraph")),  height = 450, width = 6)
                 
               )
-              
       ),
+      
       # Thrid tab content
       tabItem(tabName = "3rdtab",
               h2("Al 3 lea tab")
@@ -91,89 +133,183 @@ ui <- dashboardPage(
 )
 
 server <- function(input, output) {
-  
+
   #myDataLocation <-"C:/Users/ocris/Desktop/omni.xlsx" 
   myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx" 
   #myDataLocation <-"C:/Users/flori/OneDrive/Desktop/Omni-Data-main/Omni_Data.xlsx"
-  omniData <- read_excel(myDataLocation) %>% mutate(Date = as.Date(Date))
   
-  acc <- unique(omniData$Account)
+  omniData <- reactiveVal()  # Declare a reactive value to store the data
+  
+  observeEvent(input$selectData, {
+    showModal(modalDialog(
+      
+      title = "Select data set",
+      
+      footer = tagList(
+        
+        actionButton("ok", tags$i(class = "fa fa-check")),
+        
+        tags$button(tags$i(class = "fa fa-x"), type = "button", class = "btn btn-secondary close-modal-btn", `data-dismiss` = "modal")
+        
+      ),
+      
+      size = "l",
+      
+      id = "dataModal",
+      
+      radioGroupButtons(
+        
+        "dataSelection",
+        
+        choices = c("Default data", "Upload new data"),
+        
+        justified = TRUE
+      ),
+      conditionalPanel(
+        
+        "input.dataSelection == 'Upload new data'",
+        
+        fileInput("dataFile", "Choose data file", accept = c(".xlsx"))
+      )
+    ))
+  })
+  
+  observeEvent(input$ok, {
+    req(input$dataSelection) 
+    
+    if (input$dataSelection == "Default data") {
+
+      data <- read_excel(myDataLocation) %>%
+        mutate(Date = as.Date(Date, tz = "UTC")) 
+      
+      data$Value <- round(data$Value, 2)
+      
+    } else if (input$dataSelection == "Upload new data") {
+      
+      req(input$dataFile) 
+      
+      tempLocation <- input$dataFile
+      
+      data <- read_excel(tempLocation$datapath, 1) %>%
+        mutate(Date = as.Date(Date, tz = "UTC")) 
+      
+      data$Value <- round(data$Value, 2)
+    }
+    
+    if (exists("data")) {
+      omniData(data)  
+    }
+    removeModal()
+  })
   
   #primul input generat dinamic
   output$sidebar_input1 <- renderUI({
+    
+    req(omniData())
+    
     if (input$sidebar == "istoric") {
+      
       selectInput("selectYear", "Choose year :",
-                  choices = c(unique(year(omniData$Date))),
+                  
+                  choices = c(unique(year(omniData()$Date))),
+                  
                   selected = "2021"
       )
+      
     } else if (input$sidebar == "predictie") {
+      
       selectInput("predictAccount", "Choose an account: ",
-                  choices = c(unique(omniData$Account)),
+                  
+                  choices = c(unique(omniData()$Account)),
+                  
                   selected = "Gross Trade Sales")
+      
     } else if (input$sidebar == "3rdtab") {
+      
       textInput("input1", "input 3 gen")
+      
     }
   }) 
   
   #al doilea input generat dinamic
   output$sidebar_input2 <- renderUI({
-    if (input$sidebar == "istoric") {
+    
+     req(omniData()) 
+    
+     if (input$sidebar == "istoric") {
+      
       selectInput("selectMonth", "Choose month :",
+                  
                   choices = c("All","January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"),
+                  
                   selected = "All"
       )
+      
     } else if (input$sidebar == "predictie") {
-      actionButton("predict", "Predict")
+      
+      actionBttn("predict", "Predict")
+      
     } else if (input$sidebar == "3rdtab") {
+      
       textInput("input2", "input 2 tab3")
+      
     }
-  }) 
+  })
   
   #al treilea input generat dinamic
   output$sidebar_input3 <- renderUI({
+    
+    req(omniData())
+    
     if (input$sidebar == "istoric") {
+      
+      req(omniData())
+      
       selectInput("selectAcc", "Choose account :",
-                  choices = c("All", unique(omniData$Account)),
+                  choices = c("All", 
+                              unique(omniData()$Account)),
                   selected = "All"
       )
     } else if (input$sidebar == "predictie") {
-      #textInput("input3", "input 3 tab2")
+      
     } else if (input$sidebar == "3rdtab") {
+      
       textInput("input3", "input 3 tab3")
+      
     }
   }) 
-  
-  omniData$Value <- round(omniData$Value, 2)
-  
+
   reactiveData <- reactive({
-    
+
     req(input$selectYear)
+    
     req(input$selectMonth)
+    
     req(input$selectAcc)
     
     if (input$selectMonth == "All" & input$selectAcc == "All") {
       
-      omniFiltered <- omniData %>% filter(year(Date) == input$selectYear & 
+      omniFiltered <- omniData() %>% filter(year(Date) == input$selectYear & 
                                             Value != 0
       )
       
     } else if (input$selectMonth == "All" & input$selectAcc != "All") {
       
-      omniFiltered <- omniData %>% filter(year(Date) == input$selectYear &
+      omniFiltered <- omniData() %>% filter(year(Date) == input$selectYear &
                                             Account == input$selectAcc &
                                             Value != 0
       )
       
     } else if (input$selectMonth != "All" & input$selectAcc == "All") {
       
-      omniFiltered <- omniData %>% filter(year(Date) == input$selectYear &
+      omniFiltered <- omniData() %>% filter(year(Date) == input$selectYear &
                                             month(Date, label = TRUE, abbr = FALSE, locale = "English") == input$selectMonth &
                                             Value != 0
       )
       
     } else {
       
-      omniFiltered <- omniData %>% filter(year(Date) == input$selectYear &
+      omniFiltered <- omniData() %>% filter(year(Date) == input$selectYear &
                                             month(Date, label = TRUE, abbr = FALSE, locale = "English") == input$selectMonth &
                                             Account == input$selectAcc &
                                             Value != 0
@@ -190,31 +326,31 @@ server <- function(input, output) {
     tabelNA <- tabelNA %>% 
       filter(Cluster == "NA") 
     
-    dfGraphSet1EMEA <- omniData %>% filter(Cluster == "EMEA" & year(Date) == input$selectYear & Account %in% c("Gross Trade Sales", "Net Trade Sales", "SGM")) %>% 
+    dfGraphSet1EMEA <- omniData() %>% filter(Cluster == "EMEA" & year(Date) == input$selectYear & Account %in% c("Gross Trade Sales", "Net Trade Sales", "SGM")) %>% 
       select(Date, Account, Value)
     
-    dfGraphSet1NA <- omniData %>% filter(Cluster == "NA" & year(Date) == input$selectYear & Account %in% c("Gross Trade Sales", "Net Trade Sales", "SGM")) %>% 
+    dfGraphSet1NA <- omniData() %>% filter(Cluster == "NA" & year(Date) == input$selectYear & Account %in% c("Gross Trade Sales", "Net Trade Sales", "SGM")) %>% 
       select(Date, Account, Value)
     
-    dfGraphSet2EMEA <- omniData %>% filter(Cluster == "EMEA" & year(Date) == input$selectYear & Account %in% c("OCOS")) %>% 
+    dfGraphSet2EMEA <- omniData() %>% filter(Cluster == "EMEA" & year(Date) == input$selectYear & Account %in% c("OCOS")) %>% 
       select(Date, Account, Value)
     
-    dfGraphSet2NA <- omniData %>% filter(Cluster == "NA" & year(Date) == input$selectYear & Account %in% c("OCOS")) %>% 
+    dfGraphSet2NA <- omniData() %>% filter(Cluster == "NA" & year(Date) == input$selectYear & Account %in% c("OCOS")) %>% 
       select(Date, Account, Value)
     
-    dfGraphSet3EMEA <- omniData %>% filter(Cluster == "EMEA" & year(Date) == input$selectYear & grepl("(SG&A|FX Other)", Account)) %>% 
+    dfGraphSet3EMEA <- omniData() %>% filter(Cluster == "EMEA" & year(Date) == input$selectYear & grepl("(SG&A|FX Other)", Account)) %>% 
       select(Date, Account, Value)
     
-    dfGraphSet3NA <- omniData %>% filter(Cluster == "NA" & year(Date) == input$selectYear & grepl("(SG&A|FX Other)", Account)) %>% 
+    dfGraphSet3NA <- omniData() %>% filter(Cluster == "NA" & year(Date) == input$selectYear & grepl("(SG&A|FX Other)", Account)) %>% 
       select(Date, Account, Value)
     
-    dfGraphSet4EMEA <- omniData %>% filter(Cluster == "EMEA" & year(Date) == input$selectYear & Account %in% c("Trade OM")) %>% 
+    dfGraphSet4EMEA <- omniData() %>% filter(Cluster == "EMEA" & year(Date) == input$selectYear & Account %in% c("Trade OM")) %>% 
       select(Date, Account, Value)
     
-    dfGraphSet4NA <- omniData %>% filter(Cluster == "NA" & year(Date) == input$selectYear & Account %in% c("Trade OM")) %>% 
+    dfGraphSet4NA <- omniData() %>% filter(Cluster == "NA" & year(Date) == input$selectYear & Account %in% c("Trade OM")) %>% 
       select(Date, Account, Value)
     
-    graphAllYears <- omniData %>% filter(Account == input$selectAcc & Date < "2021-12-01")%>% 
+    graphAllYears <- omniData() %>% filter(Account == input$selectAcc & Date < "2021-12-01")%>% 
       select(Date, Account, Cluster, Value)
     
     historyGraphSet1EMEA <- dfGraphSet1EMEA %>%
@@ -353,12 +489,12 @@ server <- function(input, output) {
   
   #####################################INCEPUT FORECAST########################################
   observeEvent(input$predict, {
-    
+  
     account <- input$predictAccount
     
     ###FORECAST EMEA
 
-    omniDataEMEA <- omniData %>% filter(Cluster == "EMEA" & Account == account & Date < '2021-12-01')
+    omniDataEMEA <- omniData() %>% filter(Cluster == "EMEA" & Account == account & Date < '2021-12-01')
     omniDataEMEA <- data.frame(pivot_wider(omniDataEMEA, names_from = Account, values_from = Value))
     omniDataEMEA <- omniDataEMEA %>% select(-c("Cluster"))
     
@@ -442,10 +578,10 @@ server <- function(input, output) {
     #FINAL FORECAST EMEA
     finalDfEmea <- dummyDFEmea[which(dummyDFEmea$Model == "NNETAR"),]
     outputFinalDFEmea <- data.frame(pivot_wider(finalDfEmea, names_from = Date, values_from = Forecast)) 
-    
+    outputFinalDFEmea <- outputFinalDFEmea %>% select(-c("Timeseries", "Model"))
     
     ################################FORECAST NA#####################################################3
-    omniDataNA <- omniData %>% filter(Cluster == "NA" & Account == account & Date < '2021-12-01')
+    omniDataNA <- omniData() %>% filter(Cluster == "NA" & Account == account & Date < '2021-12-01')
     omniDataNA <- data.frame(pivot_wider(omniDataNA, names_from = Account, values_from = Value))
     omniDataNA <- omniDataNA %>% select(-c("Cluster"))
     
@@ -528,7 +664,8 @@ server <- function(input, output) {
     
     #FINAL FORECAST NA
     finalDFNa <- dummyDFNa[which(dummyDFNa$Model == "NNETAR"),]
-    outputfinalDFNa <- data.frame(pivot_wider(finalDFNa, names_from = Date, values_from = Forecast)) 
+    outputFinalDFNa <- data.frame(pivot_wider(finalDFNa, names_from = Date, values_from = Forecast)) 
+    outputFinalDFNa <- outputFinalDFNa %>% select(-c("Timeseries", "Model"))
     
     ##############3#OUTPUT NA AND EMEA FOREASTS##########################################################################################
     ##TABLE OUTPUT####
@@ -538,8 +675,8 @@ server <- function(input, output) {
     })
     
     output$predictie_NA <- DT::renderDT({
-      req(outputfinalDFNa)
-      DT::datatable(outputfinalDFNa, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE), caption = account )
+      req(outputFinalDFNa)
+      DT::datatable(outputFinalDFNa, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE), caption = account )
     })
     
     #################OUTPUT GRAFICE PREZICERE######################################
@@ -566,6 +703,7 @@ server <- function(input, output) {
         scale_color_manual(values = c("NA" = "blue")) + 
         labs(color = "Region")
     })
+    
   })
   
   #REACTIVE DATA
