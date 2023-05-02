@@ -7,11 +7,8 @@ library(reshape2)
 library(data.table)
 library(readxl)
 
-# Assume your data is named 'myData' and has columns 'Date', 'Cluster', 'Account', and 'Value'
-# You should also set 'forecastCrossValidation' and 'forecastPeriod' values before running the script
-
-forecastPeriod <- 12
-forecastCrossValidation <- 5
+forecastPeriod <- 13
+forecastCrossValidation <- 6
 
 dfCrossValidation1 <-
   data.frame(
@@ -25,9 +22,10 @@ myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx"
 
 omniData <- read_excel(myDataLocation) %>% mutate(Date = as.Date(Date))
 
+omniData <- omniData %>% filter(Date < "2021-12-01")
+
 omniData$Date <- as.Date(omniData$Date, origin = "1970-01-01")
 
-# Create an empty data frame to store cross-validation results
 dfCrossValidation1 <- data.frame()
 
 for (cluster in c("NA")) {
@@ -47,8 +45,80 @@ for (cluster in c("NA")) {
         set_engine("naive") %>%
         fit(Value ~ Date, data = crossValidationPeriod)
       
+      #Linear regression
+      model_fit_lm <- linear_reg() %>% 
+        set_engine(("lm")) %>% 
+        fit(Value ~ as.numeric(Date), ordered = FALSE, data = crossValidationPeriod) 
+      
+      #Prophet 
+      model_fit_prophet <- prophet_reg() %>% 
+        set_engine(engine = "prophet") %>% 
+        fit(Value ~ Date, data = crossValidationPeriod)
+      
+      #SNaive
+      model_fit_snaive <- naive_reg() %>%
+        set_engine("snaive") %>%
+        fit(Value ~ Date, data = crossValidationPeriod)
+      
+      #Median forecast
+      model_fit_medf <- window_reg(
+        window_size = 7
+      ) %>%
+        set_engine(
+          engine = "window_function",
+          window_function = median,
+          na.rm = TRUE
+        ) %>%
+        fit(Value ~ Date, data = crossValidationPeriod)
+      
+      #Mean forecast
+      model_fit_meanf <- window_reg(
+        window_size = 7
+      ) %>%
+        set_engine(
+          engine = "window_function",
+          window_function = mean,
+          na.rm = TRUE
+        ) %>%
+        fit(Value ~ Date, data = crossValidationPeriod)
+      
+      #Weighted forecast
+      model_fit_wf <- window_reg(
+        window_size = 7
+      ) %>%
+        set_engine(
+          engine = "window_function",
+          window_function = ~ sum(tail(.x,3) * c(0.1, 0.3, 0.6)),
+          na.rm = TRUE
+        ) %>%
+        fit(Value ~ Date, data = crossValidationPeriod)
+      
+      #ARIMA
+      model_fit_ARIMA <- arima_reg() %>%
+        set_engine("auto_arima") %>%
+        fit(Value ~ Date, data = crossValidationPeriod)
+      
+      #TBATS
+      model_fit_TBATS <- seasonal_reg() %>%
+        set_engine("tbats") %>%
+        fit(Value ~ Date, data = crossValidationPeriod)
+      
+      #Nnetar
+      model_fit_NNETAR <- nnetar_reg() %>%
+        set_engine("nnetar") %>%
+        fit(Value ~ Date, data = crossValidationPeriod)
+      
       models_tbl <- modeltime_table(
-        model_fit_naive
+        model_fit_naive,
+        model_fit_prophet,
+        model_fit_lm,
+        model_fit_snaive,
+        model_fit_medf,
+        model_fit_meanf,
+        model_fit_wf,
+        model_fit_ARIMA,
+        model_fit_TBATS,
+        model_fit_NNETAR
       )
       
       calibration_tbl <- models_tbl %>%
@@ -70,9 +140,49 @@ for (cluster in c("NA")) {
       
       finalResult <- subset(finalForecast, select = c(.model_desc, .index, .value))
       
+      View(finalResult)
 
       colnames(finalResult) <- c("For_Method", "Date", "Forecast")
       
+      i2_beg <- forecastPeriod + 1
+      i2_end <- 2*forecastPeriod
+      
+      i3_beg <- i2_beg + 1
+      i3_end <- 3*forecastPeriod
+      
+      i4_beg <- i3_end + 1
+      i4_end <- 4*forecastPeriod
+      
+      i5_beg <- i4_end + 1
+      i5_end <- 5*forecastPeriod
+      
+      i6_beg <- i5_end + 1
+      i6_end <- 6*forecastPeriod
+      
+      i7_beg <- i6_end + 1
+      i7_end <- 7*forecastPeriod
+      
+      i8_beg <- i7_end + 1
+      i8_end <- 8*forecastPeriod
+      
+      i9_beg <- i8_end + 1
+      i9_end <- 9*forecastPeriod
+      
+      i10_beg <- i9_end + 1
+      i10_end <- 10*forecastPeriod
+      
+      finalResult[1:forecastPeriod, 1] <- "Naive"
+      finalResult[i2_beg:i2_end, 1] <- "SNaive"
+      finalResult[i3_beg:i3_end, 1] <- "MF"
+      finalResult[i4_beg:i4_end, 1] <- "MEF"
+      finalResult[i5_beg:i5_end, 1] <- "WAF"
+      finalResult[i6_beg:i6_end, 1] <- "ARIMA"
+      finalResult[i7_beg:i7_end, 1] <- "TBATS"
+      finalResult[i8_beg:i8_end, 1] <- "NNETAR"
+      finalResult[i9_beg:i9_end, 1] <- "PROPHET"
+      finalResult[i10_beg:i10_end, 1] <- "LM"
+      
+      View(finalResult)
 
       dfAux <- data.frame(Item = colnames(omniDataFiltered)[4], finalResult)
       colnames(dfAux) <- c("Item", "For_Method", "Date", "Forecast")
