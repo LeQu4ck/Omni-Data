@@ -22,6 +22,7 @@ library(shinyWidgets)
 options(spinner.color="#2596be", spinner.color.background="#ffffff", spinner.size=1.4)
 
 ui <- dashboardPage(
+  
   skin = "blue",
   
   dashboardHeader(title = "OmniBI"
@@ -138,7 +139,7 @@ server <- function(input, output) {
   myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx" 
   #myDataLocation <-"C:/Users/flori/OneDrive/Desktop/Omni-Data-main/Omni_Data.xlsx"
   
-  omniData <- reactiveVal()  # Declare a reactive value to store the data
+  omniData <- reactiveVal()  
   
   observeEvent(input$selectData, {
     showModal(modalDialog(
