@@ -26,10 +26,12 @@ omniData <- omniData %>% filter(Date < "2021-12-01")
 
 omniData$Date <- as.Date(omniData$Date, origin = "1970-01-01")
 
+omniData$Value <- tsclean(omniData$Value)
+
 dfCrossValidation1 <- data.frame()
 
-for (cluster in c("NA")) {
-  for (account in c("OCOS", "SG&A")) {
+for (cluster in unique(omniData$Cluster)) {
+  for (account in unique(omniData$Account)) {
     
     cat("\nProcessing Cluster:", cluster, "Account:", account)
     
@@ -110,15 +112,15 @@ for (cluster in c("NA")) {
       
       models_tbl <- modeltime_table(
         model_fit_naive,
-        model_fit_prophet,
-        model_fit_lm,
         model_fit_snaive,
         model_fit_medf,
         model_fit_meanf,
         model_fit_wf,
         model_fit_ARIMA,
         model_fit_TBATS,
-        model_fit_NNETAR
+        model_fit_NNETAR,
+        model_fit_prophet,
+        model_fit_lm
       )
       
       calibration_tbl <- models_tbl %>%
@@ -139,8 +141,6 @@ for (cluster in c("NA")) {
         filter(.key == "prediction")
       
       finalResult <- subset(finalForecast, select = c(.model_desc, .index, .value))
-      
-      View(finalResult)
 
       colnames(finalResult) <- c("For_Method", "Date", "Forecast")
       
@@ -173,17 +173,15 @@ for (cluster in c("NA")) {
       
       finalResult[1:forecastPeriod, 1] <- "Naive"
       finalResult[i2_beg:i2_end, 1] <- "SNaive"
-      finalResult[i3_beg:i3_end, 1] <- "MF"
-      finalResult[i4_beg:i4_end, 1] <- "MEF"
+      finalResult[i3_beg:i3_end, 1] <- "MedF"
+      finalResult[i4_beg:i4_end, 1] <- "MeanF"
       finalResult[i5_beg:i5_end, 1] <- "WAF"
       finalResult[i6_beg:i6_end, 1] <- "ARIMA"
       finalResult[i7_beg:i7_end, 1] <- "TBATS"
       finalResult[i8_beg:i8_end, 1] <- "NNETAR"
       finalResult[i9_beg:i9_end, 1] <- "PROPHET"
       finalResult[i10_beg:i10_end, 1] <- "LM"
-      
-      View(finalResult)
-
+    
       dfAux <- data.frame(Item = colnames(omniDataFiltered)[4], finalResult)
       colnames(dfAux) <- c("Item", "For_Method", "Date", "Forecast")
       
@@ -192,13 +190,19 @@ for (cluster in c("NA")) {
   }
 }
 
+View(finalResult)
+
 Actuals1 <- omniData %>% select(Date, Cluster, Account, Value)
 
 Actuals1 <- reshape2::melt(Actuals1, id = c("Date", "Cluster", "Account"))
 colnames(Actuals1)[4] <- "Item"
 colnames(Actuals1)[5] <- "Actuals"
 
+View(Actuals1)
+
 dfCrossValidation1$Date <- as.Date(dfCrossValidation1$Date, origin = "1970-01-01")
+
+View(dfCrossValidation1)
 
 resultAccuracy1 <-
   merge(dfCrossValidation1,
@@ -208,6 +212,7 @@ resultAccuracy1 <-
 
 
 resultAccuracy1 <- resultAccuracy1 %>% drop_na(Actuals)
+View(resultAccuracy1)
 
 str(resultAccuracy1)
 resultAccuracy1$Forecast <- as.numeric(resultAccuracy1$Forecast)
