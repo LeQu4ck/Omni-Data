@@ -10,7 +10,14 @@ library(readxl)
 forecastPeriod <- 13
 forecastCrossValidation <- 6
 
-dfCrossValidation1 <-
+dfCrossValidationEMEA <-
+  data.frame(
+    Item = character(),
+    For_Method = character(),
+    Date = character(),
+    Forecast = numeric()
+  )
+dfCrossValidationNA <-
   data.frame(
     Item = character(),
     For_Method = character(),
@@ -28,7 +35,7 @@ omniData$Date <- as.Date(omniData$Date, origin = "1970-01-01")
 
 omniData$Value <- tsclean(omniData$Value)
 
-dfCrossValidation1 <- data.frame()
+dfCrossValidationEMEA <- data.frame()
 
 for (cluster in unique(omniData$Cluster)) {
   for (account in unique(omniData$Account)) {
@@ -62,39 +69,6 @@ for (cluster in unique(omniData$Cluster)) {
         set_engine("snaive") %>%
         fit(Value ~ Date, data = crossValidationPeriod)
       
-      #Median forecast
-      model_fit_medf <- window_reg(
-        window_size = 7
-      ) %>%
-        set_engine(
-          engine = "window_function",
-          window_function = median,
-          na.rm = TRUE
-        ) %>%
-        fit(Value ~ Date, data = crossValidationPeriod)
-      
-      #Mean forecast
-      model_fit_meanf <- window_reg(
-        window_size = 7
-      ) %>%
-        set_engine(
-          engine = "window_function",
-          window_function = mean,
-          na.rm = TRUE
-        ) %>%
-        fit(Value ~ Date, data = crossValidationPeriod)
-      
-      #Weighted forecast
-      model_fit_wf <- window_reg(
-        window_size = 7
-      ) %>%
-        set_engine(
-          engine = "window_function",
-          window_function = ~ sum(tail(.x,3) * c(0.1, 0.3, 0.6)),
-          na.rm = TRUE
-        ) %>%
-        fit(Value ~ Date, data = crossValidationPeriod)
-      
       #ARIMA
       model_fit_ARIMA <- arima_reg() %>%
         set_engine("auto_arima") %>%
@@ -113,9 +87,6 @@ for (cluster in unique(omniData$Cluster)) {
       models_tbl <- modeltime_table(
         model_fit_naive,
         model_fit_snaive,
-        model_fit_medf,
-        model_fit_meanf,
-        model_fit_wf,
         model_fit_ARIMA,
         model_fit_TBATS,
         model_fit_NNETAR,
@@ -162,30 +133,34 @@ for (cluster in unique(omniData$Cluster)) {
       i7_beg <- i6_end + 1
       i7_end <- 7*forecastPeriod
       
-      i8_beg <- i7_end + 1
-      i8_end <- 8*forecastPeriod
-      
-      i9_beg <- i8_end + 1
-      i9_end <- 9*forecastPeriod
-      
-      i10_beg <- i9_end + 1
-      i10_end <- 10*forecastPeriod
+      # i8_beg <- i7_end + 1
+      # i8_end <- 8*forecastPeriod
+      # 
+      # i9_beg <- i8_end + 1
+      # i9_end <- 9*forecastPeriod
+      # 
+      # i10_beg <- i9_end + 1
+      # i10_end <- 10*forecastPeriod
       
       finalResult[1:forecastPeriod, 1] <- "Naive"
       finalResult[i2_beg:i2_end, 1] <- "SNaive"
-      finalResult[i3_beg:i3_end, 1] <- "MedF"
-      finalResult[i4_beg:i4_end, 1] <- "MeanF"
-      finalResult[i5_beg:i5_end, 1] <- "WAF"
-      finalResult[i6_beg:i6_end, 1] <- "ARIMA"
-      finalResult[i7_beg:i7_end, 1] <- "TBATS"
-      finalResult[i8_beg:i8_end, 1] <- "NNETAR"
-      finalResult[i9_beg:i9_end, 1] <- "PROPHET"
-      finalResult[i10_beg:i10_end, 1] <- "LM"
+      # finalResult[i3_beg:i3_end, 1] <- "MedF"
+      # finalResult[i4_beg:i4_end, 1] <- "MeanF"
+      # finalResult[i5_beg:i5_end, 1] <- "WAF"
+      finalResult[i3_beg:i3_end, 1] <- "ARIMA"
+      finalResult[i4_beg:i4_end, 1] <- "TBATS"
+      finalResult[i5_beg:i5_end, 1] <- "NNETAR"
+      finalResult[i6_beg:i6_end, 1] <- "PROPHET"
+      finalResult[i7_beg:i7_end, 1] <- "LM"
     
       dfAux <- data.frame(Item = colnames(omniDataFiltered)[4], finalResult)
       colnames(dfAux) <- c("Item", "For_Method", "Date", "Forecast")
       
-      dfCrossValidation1 <- rbind(dfCrossValidation1, dfAux)
+      if(cluster=="EMEA"){
+        dfCrossValidationEMEA <- rbind(dfCrossValidationEMEA, dfAux)
+      }else{
+        dfCrossValidationNA <- rbind(dfCrossValidationNA, dfAux)
+      }
     }
   }
 }
@@ -200,12 +175,12 @@ colnames(Actuals1)[5] <- "Actuals"
 
 View(Actuals1)
 
-dfCrossValidation1$Date <- as.Date(dfCrossValidation1$Date, origin = "1970-01-01")
+dfCrossValidationEMEA$Date <- as.Date(dfCrossValidationEMEA$Date, origin = "1970-01-01")
 
-View(dfCrossValidation1)
+View(dfCrossValidationEMEA)
 
 resultAccuracy1 <-
-  merge(dfCrossValidation1,
+  merge(dfCrossValidationEMEA,
         Actuals1,
         by = c("Date", "Item"),
         all.x = TRUE)
@@ -244,7 +219,66 @@ View(bm_final_results1)
 bestMethod1 <- bm_final_results1[1, 4]
 View(bestMethod1)
 
-bestMethodForecast1 <- dfCrossValidation1 %>%
+bestMethodForecast1 <- dfCrossValidationEMEA %>%
   filter(For_Method == bestMethod1)
+
 View(bestMethodForecast1)
-View(dfCrossValidation1)
+View(dfCrossValidationEMEA)
+
+Actuals2 <- omniData %>% select(Date, Cluster, Account, Value)
+
+Actuals2 <- reshape2::melt(Actuals2, id = c("Date", "Cluster", "Account"))
+colnames(Actuals1)[4] <- "Item"
+colnames(Actuals1)[5] <- "Actuals"
+
+View(Actuals2)
+
+dfCrossValidationNA$Date <- as.Date(dfCrossValidationNA$Date, origin = "1970-01-01")
+
+View(dfCrossValidationNA)
+
+resultAccuracy2 <-
+  merge(dfCrossValidationNA,
+        Actuals1,
+        by = c("Date", "Item"),
+        all.x = TRUE)
+
+
+resultAccuracy2 <- resultAccuracy2 %>% drop_na(Actuals)
+View(resultAccuracy2)
+
+str(resultAccuracy2)
+resultAccuracy2$Forecast <- as.numeric(resultAccuracy2$Forecast)
+
+multiMetric2 <- metric_set(mae)
+
+mdAcc2 <- resultAccuracy2 %>%
+  group_by(Item, For_Method) %>%
+  summarize_accuracy_metrics(Actuals, Forecast, metric_set = multiMetric1)
+
+mdAcc2 <- mdAcc2 %>%
+  tidyr::pivot_longer(cols = c(mae),
+                      names_to = "variable",
+                      values_to = "MAE")
+
+DT2 <- data.table(mdAcc2)
+View(DT2)
+
+bm_final_results2 <-
+  as.data.frame(DT2[, .SD[which.min(MAE)], by = c("Item")])
+View(bm_final_results2)
+
+bm_final_results2 <- merge(Actuals2, bm_final_results2, by = c("Item"))
+View(bm_final_results1)
+
+bm_final_results2 <- bm_final_results2[c(2, 1, 5, 6)]
+View(bm_final_results1)
+
+bestMethod2 <- bm_final_results2[1, 4]
+View(bestMethod2)
+
+bestMethodForecast2 <- dfCrossValidationNA %>%
+  filter(For_Method == bestMethod2)
+
+View(bestMethodForecast2)
+View(dfCrossValidationNA)

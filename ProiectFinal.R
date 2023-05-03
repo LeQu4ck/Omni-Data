@@ -1,4 +1,8 @@
 library(shiny)
+library(shinydashboard)
+library(shinycssloaders)
+library(shinyjs)
+library(shinyWidgets)
 library(readxl)
 library(lubridate)
 library(tidyr)
@@ -7,17 +11,14 @@ library(DT)
 library(ggplot2)
 library(hrbrthemes)
 library(viridis)
-library(shinydashboard)
 library(plotly)
-library(shinycssloaders)
 library(stringr)
 library(forecast)
 library(modeltime)
 library(timetk)
 library(rsample)
 library(tidymodels) 
-library(shinyjs)
-library(shinyWidgets)
+
 
 options(spinner.color="#2596be", spinner.color.background="#ffffff", spinner.size=1.4)
 
@@ -30,15 +31,14 @@ ui <- dashboardPage(
   dashboardSidebar(
     
     sidebarMenu(id = "sidebar",
-                menuItem("Istoric", tabName = "istoric",  icon = icon("database")),
-                menuItem("Predictie", tabName = "predictie", icon = icon("clock")),
-                menuItem("Al 3 lea tab", tabName = "3rdtab", icon = icon("dice"))
+                menuItem("Actual data", tabName = "actual",  icon = icon("database")),
+                menuItem("Prediction", tabName = "prediction", icon = icon("clock"))
     ),
     
     uiOutput("sidebar_input1"),
     uiOutput("sidebar_input2"),
     uiOutput("sidebar_input3"),
-    actionBttn("selectData", "Select Data Set")
+    actionBttn("selectData", "Select data set")
     
   ),
   dashboardBody(
@@ -66,15 +66,48 @@ ui <- dashboardPage(
           background-color: #2596be;
           color: #ffffff;
         }
+        #ok:hover {
+          background-color: green;
+        }
         .close-modal-btn {
           background-color: red;
           color: #ffffff;
         }
+        .box-header {
+          background-color: #222d32;
+          color: #ffffff;
+        }
+        #selectData {
+          background-color: #2596be;
+          color: #ffffff;
+          transition: all 0.5s ease-in-out;
+        }
+        #selectData:hover {
+          color: black;
+          box-shadow: 0 0 2px #fff, 0 0 10px #fff, 0 0 20px #0ba9ca, 0 0 30px #0ba9ca;
+        }
+        #predict {
+          background-color: #2596be;
+          color: #ffffff;
+          transition: all 0.5s ease-in-out;
+          margin-bottom: 15px;
+        }
+        #predict:hover {
+          color: black;
+          box-shadow: 0 0 2px #fff, 0 0 10px #fff, 0 0 20px #0ba9ca, 0 0 30px #0ba9ca;
+        }
+        .navbar navbar-static-top{
+        position: fixed;
+        }
+        .fa-check:hover {
+          color: black;
+        }
+        
       "))
     ),
     tabItems( 
       # First tab content
-      tabItem(tabName = "istoric",
+      tabItem(tabName = "actual",
               fluidRow( 
                 
                 box(title = "EMEA History", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("tabel_EMEA")), width = 12),
@@ -106,7 +139,7 @@ ui <- dashboardPage(
       ),
       
       # Second tab content
-      tabItem(tabName = "predictie",
+      tabItem(tabName = "prediction",
               
               fluidRow(
                 
@@ -123,11 +156,6 @@ ui <- dashboardPage(
                 box(shinycssloaders::withSpinner(plotOutput("predictieNAgraph")),  height = 450, width = 6)
                 
               )
-      ),
-      
-      # Thrid tab content
-      tabItem(tabName = "3rdtab",
-              h2("Al 3 lea tab")
       )
     )
   )
@@ -148,7 +176,7 @@ server <- function(input, output) {
       
       footer = tagList(
         
-        actionButton("ok", tags$i(class = "fa fa-check")),
+        tags$button(id = "ok", tags$i(class = "fa fa-check"), type = "button", class = "btn action-button btn-secondary"),
         
         tags$button(tags$i(class = "fa fa-x"), type = "button", class = "btn btn-secondary close-modal-btn", `data-dismiss` = "modal")
         
@@ -208,7 +236,7 @@ server <- function(input, output) {
     
     req(omniData())
     
-    if (input$sidebar == "istoric") {
+    if (input$sidebar == "actual") {
       
       selectInput("selectYear", "Choose year :",
                   
@@ -217,17 +245,13 @@ server <- function(input, output) {
                   selected = "2021"
       )
       
-    } else if (input$sidebar == "predictie") {
+    } else if (input$sidebar == "prediction") {
       
       selectInput("predictAccount", "Choose an account: ",
                   
                   choices = c(unique(omniData()$Account)),
                   
                   selected = "Gross Trade Sales")
-      
-    } else if (input$sidebar == "3rdtab") {
-      
-      textInput("input1", "input 3 gen")
       
     }
   }) 
@@ -237,7 +261,7 @@ server <- function(input, output) {
     
      req(omniData()) 
     
-     if (input$sidebar == "istoric") {
+     if (input$sidebar == "actual") {
       
       selectInput("selectMonth", "Choose month :",
                   
@@ -246,7 +270,7 @@ server <- function(input, output) {
                   selected = "All"
       )
       
-    } else if (input$sidebar == "predictie") {
+    } else if (input$sidebar == "prediction") {
       
       actionBttn("predict", "Predict")
       
@@ -262,7 +286,7 @@ server <- function(input, output) {
     
     req(omniData())
     
-    if (input$sidebar == "istoric") {
+    if (input$sidebar == "actual") {
       
       req(omniData())
       
@@ -271,13 +295,7 @@ server <- function(input, output) {
                               unique(omniData()$Account)),
                   selected = "All"
       )
-    } else if (input$sidebar == "predictie") {
-      
-    } else if (input$sidebar == "3rdtab") {
-      
-      textInput("input3", "input 3 tab3")
-      
-    }
+    } 
   }) 
 
   reactiveData <- reactive({
@@ -351,7 +369,7 @@ server <- function(input, output) {
     dfGraphSet4NA <- omniData() %>% filter(Cluster == "NA" & year(Date) == input$selectYear & Account %in% c("Trade OM")) %>% 
       select(Date, Account, Value)
     
-    graphAllYears <- omniData() %>% filter(Account == input$selectAcc & Date < "2021-12-01")%>% 
+    graphAllYears <- omniData() %>% filter(Account == input$selectAcc)%>% 
       select(Date, Account, Cluster, Value)
     
     historyGraphSet1EMEA <- dfGraphSet1EMEA %>%
@@ -360,7 +378,7 @@ server <- function(input, output) {
       geom_point(size = 4) +
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
-      ggtitle(paste(input$selectYear, "EMEA Historic Data for Gross Trade Sales, Net Trade Sales and SGM"))+
+      ggtitle(paste(input$selectYear, "EMEA Historical Data for Gross Trade Sales, Net Trade Sales and SGM"))+
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
       theme(
         legend.position = "bottom",
@@ -374,7 +392,7 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       ylab("Sales") + 
-      ggtitle(paste(input$selectYear, "NA Historic Data for Gross Trade Sales, Net Trade Sales and SGM")) +
+      ggtitle(paste(input$selectYear, "NA Historical Data for Gross Trade Sales, Net Trade Sales and SGM")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) + 
       theme(
         legend.position = "bottom",
@@ -388,7 +406,7 @@ server <- function(input, output) {
       geom_point(size = 4) +
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
-      ggtitle(paste(input$selectYear, "EMEA Historic Data for OCOS")) +
+      ggtitle(paste(input$selectYear, "EMEA Historical Data for OCOS")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
       theme(
         legend.position = "bottom",
@@ -402,7 +420,7 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       ylab("Sales") + 
-      ggtitle(paste(input$selectYear, "NA Historic Data for OCOS")) +
+      ggtitle(paste(input$selectYear, "NA Historical Data for OCOS")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) + 
       theme(
         legend.position = "bottom",
@@ -416,7 +434,7 @@ server <- function(input, output) {
       geom_point(size = 4) +
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
-      ggtitle(paste(input$selectYear, "EMEA Historic Data for SG&A and FX Other")) +
+      ggtitle(paste(input$selectYear, "EMEA Historical Data for SG&A and FX Other")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
       theme(
         legend.position = "bottom",
@@ -430,7 +448,7 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       ylab("Sales") + 
-      ggtitle(paste(input$selectYear, "NA Historic Data for SG&A and FX Other")) +
+      ggtitle(paste(input$selectYear, "NA Historical Data for SG&A and FX Other")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) + 
       theme(
         legend.position = "bottom",
@@ -444,7 +462,7 @@ server <- function(input, output) {
       geom_point(size = 4) +
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
-      ggtitle(paste(input$selectYear, "EMEA Historic Data for Trade OM")) +
+      ggtitle(paste(input$selectYear, "EMEA Historical Data for Trade OM")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
       theme(
         legend.position = "bottom",
@@ -458,7 +476,7 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       ylab("Sales") + 
-      ggtitle(paste(input$selectYear, "NA Historic Data for SG&A and Trade OM")) +
+      ggtitle(paste(input$selectYear, "NA Historical Data for SG&A and Trade OM")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) + 
       theme(
         legend.position = "bottom",
@@ -470,7 +488,7 @@ server <- function(input, output) {
       ggplot(aes(x=Date, y=Value, group = Cluster, color = Cluster)) +
       geom_line(size = 1.2) +
       ylab("Sales") + 
-      ggtitle(paste("All Years Historic Data for", input$selectAcc)) +
+      ggtitle(paste("All Years Historical Data for", input$selectAcc)) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE))+ 
       theme(
         legend.position = "bottom",
@@ -515,14 +533,12 @@ server <- function(input, output) {
       splits <- initial_time_split(mainDataForecast, prop=0.75)
       
       #create and fit models
-      #Nnetar
-      model_fit_NNETAR <- nnetar_reg() %>%
-        set_engine("nnetar") %>%
-        fit(Values ~ Date, data = training(splits))
-      
+      model_fit_prophet <- prophet_reg() %>% 
+        set_engine(engine = "prophet") %>% 
+        fit(Values ~ Date, data = training(splits)) 
       
       models_tbl <- modeltime_table(
-        model_fit_NNETAR
+        model_fit_prophet
       )
       
       #Calibrate model to testing set
@@ -562,7 +578,7 @@ server <- function(input, output) {
       
       final_forecast <- subset(final_forecast, select = c(.model_desc, .index, .value))
       
-      final_forecast[1:forecastPeriod, 1] <- "NNETAR"
+      final_forecast[1:forecastPeriod, 1] <- "PROPHET"
       
       final_forecast <- cbind(as.data.frame(colnames(omniDataEMEA[i])), final_forecast)
       
@@ -577,7 +593,7 @@ server <- function(input, output) {
     }
     
     #FINAL FORECAST EMEA
-    finalDfEmea <- dummyDFEmea[which(dummyDFEmea$Model == "NNETAR"),]
+    finalDfEmea <- dummyDFEmea[which(dummyDFEmea$Model == "PROPHET"),]
     outputFinalDFEmea <- data.frame(pivot_wider(finalDfEmea, names_from = Date, values_from = Forecast)) 
     outputFinalDFEmea <- outputFinalDFEmea %>% select(-c("Timeseries", "Model"))
     
@@ -602,30 +618,18 @@ server <- function(input, output) {
       splits <- initial_time_split(mainDataForecast, prop=0.75)
       
       #create and fit models
-      #Nnetar
-      model_fit_NNETAR <- nnetar_reg() %>%
-        set_engine("nnetar") %>%
+      model_fit_snaive <- naive_reg() %>%
+        set_engine("snaive") %>%
         fit(Values ~ Date, data = training(splits))
       
-      
       models_tbl <- modeltime_table(
-        model_fit_NNETAR
+        model_fit_snaive
       )
       
       #Calibrate model to testing set
       calibration_tbl <- models_tbl %>% 
         modeltime_calibrate(
           new_data = testing(splits)
-        )
-      
-      #visual 
-      calibration_tbl %>% 
-        modeltime_forecast(
-          new_data = testing(splits),
-          actual_data =  mainDataForecast
-        ) %>% 
-        plot_modeltime_forecast(
-          .legend_max_width = 25
         )
       
       #metrics
@@ -649,7 +653,7 @@ server <- function(input, output) {
       
       final_forecast <- subset(final_forecast, select = c(.model_desc, .index, .value))
       
-      final_forecast[1:forecastPeriod, 1] <- "NNETAR"
+      final_forecast[1:forecastPeriod, 1] <- "SNAIVE"
       
       final_forecast <- cbind(as.data.frame(colnames(omniDataNA[i])), final_forecast)
       
@@ -664,7 +668,7 @@ server <- function(input, output) {
     }
     
     #FINAL FORECAST NA
-    finalDFNa <- dummyDFNa[which(dummyDFNa$Model == "NNETAR"),]
+    finalDFNa <- dummyDFNa[which(dummyDFNa$Model == "SNAIVE"),]
     outputFinalDFNa <- data.frame(pivot_wider(finalDFNa, names_from = Date, values_from = Forecast)) 
     outputFinalDFNa <- outputFinalDFNa %>% select(-c("Timeseries", "Model"))
     
@@ -710,12 +714,12 @@ server <- function(input, output) {
   #REACTIVE DATA
   output$tabel_EMEA <- DT::renderDT({
     req(reactiveData()$tabel_EMEA, cancelOutput = TRUE)
-    DT::datatable(reactiveData()$tabel_EMEA, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE))
+    DT::datatable(reactiveData()$tabel_EMEA, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE, columnDefs = list(list(className = 'dt-center', targets = 0:4))))
   })
   
   output$tabel_NA <- DT::renderDT({
     req(reactiveData()$tabel_NA, cancelOutput = TRUE)
-    DT::datatable(reactiveData()$tabel_NA, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE))
+    DT::datatable(reactiveData()$tabel_NA, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE, columnDefs = list(list(className = 'dt-center', targets = 0:4))))
   })
   
   output$graphSet1EMEA <- renderPlot({
