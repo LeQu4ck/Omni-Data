@@ -271,6 +271,9 @@ for(i in 2:ncol(omniDataEMEA)){
   
   #FINAL FORECAST
   finalDf <- dummyDF[which(dummyDF$Model == "NNETAR"),]
-
-  View(finalDf)  
+  outputFinalDF <- data.frame(pivot_wider(finalDf, names_from = Date, values_from = Forecast)) 
+  outputFinalDF <- outputFinalDF %>% select(-c("Timeseries", "Model"))
+  
+  sum <- rowSums(outputFinalDF)
+  View(sum)  
   

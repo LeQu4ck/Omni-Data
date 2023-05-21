@@ -168,6 +168,7 @@ for (cluster in unique(omniData$Cluster)) {
 View(finalResult)
 
 Actuals1 <- omniData %>% select(Date, Cluster, Account, Value)
+Actuals1 <- Actuals1 %>% filter(Cluster == 'EMEA')
 
 Actuals1 <- reshape2::melt(Actuals1, id = c("Date", "Cluster", "Account"))
 colnames(Actuals1)[4] <- "Item"
@@ -226,10 +227,11 @@ View(bestMethodForecast1)
 View(dfCrossValidationEMEA)
 
 Actuals2 <- omniData %>% select(Date, Cluster, Account, Value)
+Actuals2 <- Actuals2 %>% filter(Cluster == 'NA')
 
 Actuals2 <- reshape2::melt(Actuals2, id = c("Date", "Cluster", "Account"))
-colnames(Actuals1)[4] <- "Item"
-colnames(Actuals1)[5] <- "Actuals"
+colnames(Actuals2)[4] <- "Item"
+colnames(Actuals2)[5] <- "Actuals"
 
 View(Actuals2)
 
@@ -269,7 +271,7 @@ bm_final_results2 <-
 View(bm_final_results2)
 
 bm_final_results2 <- merge(Actuals2, bm_final_results2, by = c("Item"))
-View(bm_final_results1)
+View(bm_final_results2)
 
 bm_final_results2 <- bm_final_results2[c(2, 1, 5, 6)]
 View(bm_final_results1)

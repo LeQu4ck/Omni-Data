@@ -97,7 +97,7 @@ ui <- dashboardPage(
           box-shadow: 0 0 2px #fff, 0 0 10px #fff, 0 0 20px #0ba9ca, 0 0 30px #0ba9ca;
         }
         .navbar navbar-static-top{
-        position: fixed;
+          position: fixed;
         }
         .fa-check:hover {
           color: black;
@@ -145,7 +145,15 @@ ui <- dashboardPage(
                 
                 box(title = "Prediction table EMEA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("predictie_EMEA")),  width = 12),
                 
-                box(title = "Prediction table NA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("predictie_NA")),  width = 12)
+                box(title = "Suma EMEA",
+                    width = 3,
+                    verbatimTextOutput("sumEMEA")),
+                
+                box(title = "Prediction table NA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("predictie_NA")),  width = 12),
+                
+                box(title = "Suma NA",
+                    width = 3,
+                    verbatimTextOutput("sumNA"))
                 
               ),
               
@@ -164,7 +172,7 @@ ui <- dashboardPage(
 server <- function(input, output) {
 
   #myDataLocation <-"C:/Users/ocris/Desktop/omni.xlsx" 
-  myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx" 
+  myDataLocation <- "C:/Users/Userr/OneDrive/Fac/Mast/Omni_Data_modificat.xlsx"
   #myDataLocation <-"C:/Users/flori/OneDrive/Desktop/Omni-Data-main/Omni_Data.xlsx"
   
   omniData <- reactiveVal()  
@@ -242,7 +250,7 @@ server <- function(input, output) {
                   
                   choices = c(unique(year(omniData()$Date))),
                   
-                  selected = "2021"
+                  selected = "2022"
       )
       
     } else if (input$sidebar == "prediction") {
@@ -251,7 +259,7 @@ server <- function(input, output) {
                   
                   choices = c(unique(omniData()$Account)),
                   
-                  selected = "Gross Trade Sales")
+                  selected = "Gross Sales")
       
     }
   }) 
@@ -345,10 +353,10 @@ server <- function(input, output) {
     tabelNA <- tabelNA %>% 
       filter(Cluster == "NA") 
     
-    dfGraphSet1EMEA <- omniData() %>% filter(Cluster == "EMEA" & year(Date) == input$selectYear & Account %in% c("Gross Trade Sales", "Net Trade Sales", "SGM")) %>% 
+    dfGraphSet1EMEA <- omniData() %>% filter(Cluster == "EMEA" & year(Date) == input$selectYear & Account %in% c("Gross Sales", "Net Sales", "SGM")) %>% 
       select(Date, Account, Value)
     
-    dfGraphSet1NA <- omniData() %>% filter(Cluster == "NA" & year(Date) == input$selectYear & Account %in% c("Gross Trade Sales", "Net Trade Sales", "SGM")) %>% 
+    dfGraphSet1NA <- omniData() %>% filter(Cluster == "NA" & year(Date) == input$selectYear & Account %in% c("Gross Sales", "Net Sales", "SGM")) %>% 
       select(Date, Account, Value)
     
     dfGraphSet2EMEA <- omniData() %>% filter(Cluster == "EMEA" & year(Date) == input$selectYear & Account %in% c("OCOS")) %>% 
@@ -357,16 +365,16 @@ server <- function(input, output) {
     dfGraphSet2NA <- omniData() %>% filter(Cluster == "NA" & year(Date) == input$selectYear & Account %in% c("OCOS")) %>% 
       select(Date, Account, Value)
     
-    dfGraphSet3EMEA <- omniData() %>% filter(Cluster == "EMEA" & year(Date) == input$selectYear & grepl("(SG&A|FX Other)", Account)) %>% 
+    dfGraphSet3EMEA <- omniData() %>% filter(Cluster == "EMEA" & year(Date) == input$selectYear & grepl("(SG&A|FX)", Account)) %>% 
       select(Date, Account, Value)
     
-    dfGraphSet3NA <- omniData() %>% filter(Cluster == "NA" & year(Date) == input$selectYear & grepl("(SG&A|FX Other)", Account)) %>% 
+    dfGraphSet3NA <- omniData() %>% filter(Cluster == "NA" & year(Date) == input$selectYear & grepl("(SG&A|FX)", Account)) %>% 
       select(Date, Account, Value)
     
-    dfGraphSet4EMEA <- omniData() %>% filter(Cluster == "EMEA" & year(Date) == input$selectYear & Account %in% c("Trade OM")) %>% 
+    dfGraphSet4EMEA <- omniData() %>% filter(Cluster == "EMEA" & year(Date) == input$selectYear & Account %in% c("Operating Margin")) %>% 
       select(Date, Account, Value)
     
-    dfGraphSet4NA <- omniData() %>% filter(Cluster == "NA" & year(Date) == input$selectYear & Account %in% c("Trade OM")) %>% 
+    dfGraphSet4NA <- omniData() %>% filter(Cluster == "NA" & year(Date) == input$selectYear & Account %in% c("Operating Margin")) %>% 
       select(Date, Account, Value)
     
     graphAllYears <- omniData() %>% filter(Account == input$selectAcc)%>% 
@@ -378,7 +386,7 @@ server <- function(input, output) {
       geom_point(size = 4) +
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
-      ggtitle(paste(input$selectYear, "EMEA Historical Data for Gross Trade Sales, Net Trade Sales and SGM"))+
+      ggtitle(paste(input$selectYear, "EMEA Historical Data for Gross Sales, Net Sales and SGM"))+
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
       theme(
         legend.position = "bottom",
@@ -392,7 +400,7 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       ylab("Sales") + 
-      ggtitle(paste(input$selectYear, "NA Historical Data for Gross Trade Sales, Net Trade Sales and SGM")) +
+      ggtitle(paste(input$selectYear, "NA Historical Data for Gross Sales, Net Sales and SGM")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) + 
       theme(
         legend.position = "bottom",
@@ -434,7 +442,7 @@ server <- function(input, output) {
       geom_point(size = 4) +
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
-      ggtitle(paste(input$selectYear, "EMEA Historical Data for SG&A and FX Other")) +
+      ggtitle(paste(input$selectYear, "EMEA Historical Data for SG&A and FX SGA")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
       theme(
         legend.position = "bottom",
@@ -448,7 +456,7 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       ylab("Sales") + 
-      ggtitle(paste(input$selectYear, "NA Historical Data for SG&A and FX Other")) +
+      ggtitle(paste(input$selectYear, "NA Historical Data for SG&A and FX SGA")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) + 
       theme(
         legend.position = "bottom",
@@ -462,7 +470,7 @@ server <- function(input, output) {
       geom_point(size = 4) +
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
-      ggtitle(paste(input$selectYear, "EMEA Historical Data for Trade OM")) +
+      ggtitle(paste(input$selectYear, "EMEA Historical Data for Operating Margin")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
       theme(
         legend.position = "bottom",
@@ -476,7 +484,7 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       ylab("Sales") + 
-      ggtitle(paste(input$selectYear, "NA Historical Data for SG&A and Trade OM")) +
+      ggtitle(paste(input$selectYear, "NA Historical Data for SG&A and Operating Margin")) +
       scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) + 
       theme(
         legend.position = "bottom",
@@ -513,7 +521,7 @@ server <- function(input, output) {
     
     ###FORECAST EMEA
 
-    omniDataEMEA <- omniData() %>% filter(Cluster == "EMEA" & Account == account & Date < '2021-12-01')
+    omniDataEMEA <- omniData() %>% filter(Cluster == "EMEA" & Account == account & Date < '2022-12-01')
     omniDataEMEA <- data.frame(pivot_wider(omniDataEMEA, names_from = Account, values_from = Value))
     omniDataEMEA <- omniDataEMEA %>% select(-c("Cluster"))
     
@@ -594,11 +602,16 @@ server <- function(input, output) {
     
     #FINAL FORECAST EMEA
     finalDfEmea <- dummyDFEmea[which(dummyDFEmea$Model == "PROPHET"),]
-    outputFinalDFEmea <- data.frame(pivot_wider(finalDfEmea, names_from = Date, values_from = Forecast)) 
-    outputFinalDFEmea <- outputFinalDFEmea %>% select(-c("Timeseries", "Model"))
+    outputFinalDFEmea <- finalDfEmea %>% select(-c("Timeseries", "Model"))
+    outputFinalDFEmea <- pivot_wider(outputFinalDFEmea, names_from = Date, values_from = Forecast)
+    
+    outputFinalDFEmea <- as.data.frame(lapply(outputFinalDFEmea, as.numeric))
+    
+    # Sum of row EMEA
+    sumEMEA <- rowSums(outputFinalDFEmea[, -1])
     
     ################################FORECAST NA#####################################################3
-    omniDataNA <- omniData() %>% filter(Cluster == "NA" & Account == account & Date < '2021-12-01')
+    omniDataNA <- omniData() %>% filter(Cluster == "NA" & Account == account & Date < '2022-12-01')
     omniDataNA <- data.frame(pivot_wider(omniDataNA, names_from = Account, values_from = Value))
     omniDataNA <- omniDataNA %>% select(-c("Cluster"))
     
@@ -669,8 +682,13 @@ server <- function(input, output) {
     
     #FINAL FORECAST NA
     finalDFNa <- dummyDFNa[which(dummyDFNa$Model == "SNAIVE"),]
-    outputFinalDFNa <- data.frame(pivot_wider(finalDFNa, names_from = Date, values_from = Forecast)) 
-    outputFinalDFNa <- outputFinalDFNa %>% select(-c("Timeseries", "Model"))
+    outputFinalDFNa <- finalDFNa %>% select(-c("Timeseries", "Model"))
+    outputFinalDFNa <- pivot_wider(outputFinalDFNa, names_from = Date, values_from = Forecast)
+    
+    outputFinalDFNa <- as.data.frame(lapply(outputFinalDFNa, as.numeric))
+    
+    # Sum of row NA
+    sumNA <- rowSums(outputFinalDFNa[, -1])
     
     ##############3#OUTPUT NA AND EMEA FOREASTS##########################################################################################
     ##TABLE OUTPUT####
@@ -679,9 +697,17 @@ server <- function(input, output) {
       DT::datatable(outputFinalDFEmea, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE), caption = account )
     })
     
+    output$sumEMEA <- renderPrint({
+      req(sumEMEA)
+    })
+    
     output$predictie_NA <- DT::renderDT({
       req(outputFinalDFNa)
       DT::datatable(outputFinalDFNa, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE), caption = account )
+    })
+    
+    output$sumNA <- renderPrint({
+      req(sumNA)
     })
     
     #################OUTPUT GRAFICE PREZICERE######################################
