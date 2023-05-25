@@ -9,14 +9,29 @@ library(lubridate)
 library(tidyverse)
 library(timetk)
 library(rsample)
-library(tidymodels)      
+library(tidymodels)     
+library(descriptr)
 
 
 myDataLocation <-"C:/Users/Userr/Downloads/Omni_Data.xlsx"
 
 omniData <- read_excel(myDataLocation) %>% mutate(Date = as.Date(Date))
-tabelEMEA <- data.frame(pivot_wider(omniData, names_from = Date, values_from = Value, names_prefix = "")) 
+filtered <- omniData %>% filter(year(Date) == 2018 )
 
+tabelEMEA <- filtered %>%
+  pivot_wider(names_from = Date, values_from = Value, names_prefix = "") %>%
+  rename_with(~gsub("^X", "", .), .cols = starts_with("X"))
+tabelEMEA <- tabelEMEA %>% select(-c("Account"))
+
+View(filtered)
+View(tabelEMEA)
+
+newDF <- as.data.frame(pivot_wider(omniData, names_from = Account, values_from = Value))
+
+newDF <- newDF %>% select(-c("Cluster"))
+View(newDF)
+
+dsDf <- descriptr::ds_auto_summary_stats(omniData)
 
 omniFiltered <- omniData %>% filter(year(Date) == 2020 & grepl("(SG&A|FX Other)", Account))
 

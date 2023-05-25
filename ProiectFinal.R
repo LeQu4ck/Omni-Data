@@ -145,13 +145,13 @@ ui <- dashboardPage(
                 
                 box(title = "Prediction table EMEA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("predictie_EMEA")),  width = 12),
                 
-                box(title = "Suma EMEA",
+                box(title = "Total predicted value in 2023 for EMEA",
                     width = 3,
                     verbatimTextOutput("sumEMEA")),
                 
                 box(title = "Prediction table NA", collapsible = TRUE, solidHeader = TRUE, withSpinner(DT::dataTableOutput("predictie_NA")),  width = 12),
                 
-                box(title = "Suma NA",
+                box(title = "Total predicted value in 2023 for NA",
                     width = 3,
                     verbatimTextOutput("sumNA"))
                 
@@ -218,8 +218,7 @@ server <- function(input, output) {
 
       data <- read_excel(myDataLocation) %>%
         mutate(Date = as.Date(Date, tz = "UTC")) 
-      
-      data$Value <- round(data$Value, 2)
+
       
     } else if (input$dataSelection == "Upload new data") {
       
@@ -229,8 +228,6 @@ server <- function(input, output) {
       
       data <- read_excel(tempLocation$datapath, 1) %>%
         mutate(Date = as.Date(Date, tz = "UTC")) 
-      
-      data$Value <- round(data$Value, 2)
     }
     
     if (exists("data")) {
@@ -343,15 +340,23 @@ server <- function(input, output) {
       )
     }
     
-    tabelEMEA <- data.frame(pivot_wider(omniFiltered, names_from = Date, values_from = Value, names_prefix = "")) 
+    omniFiltered$Value <- format(omniFiltered$Value, big.mark = ",", scientific = FALSE)
     
-    tabelNA <- data.frame(pivot_wider(omniFiltered, names_from = Date, values_from = Value, names_prefix = "")) 
+    tabelEMEA <- data.frame(pivot_wider(omniFiltered, names_from = Date, values_from = Value, names_prefix = "")) %>%
+      rename_with(~gsub("^X", "", .), .cols = starts_with("X"))
+    
+    tabelNA <- data.frame(pivot_wider(omniFiltered, names_from = Date, values_from = Value, names_prefix = "")) %>%
+      rename_with(~gsub("^X", "", .), .cols = starts_with("X"))
     
     tabelEMEA <- tabelEMEA %>% 
       filter(Cluster == "EMEA")
     
+    tabelEMEA <- tabelEMEA %>% select(-c("Cluster"))
+    
     tabelNA <- tabelNA %>% 
       filter(Cluster == "NA") 
+    
+    tabelNA <- tabelNA %>% select(-c("Cluster"))
     
     dfGraphSet1EMEA <- omniData() %>% filter(Cluster == "EMEA" & year(Date) == input$selectYear & Account %in% c("Gross Sales", "Net Sales", "SGM")) %>% 
       select(Date, Account, Value)
@@ -603,9 +608,11 @@ server <- function(input, output) {
     #FINAL FORECAST EMEA
     finalDfEmea <- dummyDFEmea[which(dummyDFEmea$Model == "PROPHET"),]
     outputFinalDFEmea <- finalDfEmea %>% select(-c("Timeseries", "Model"))
-    outputFinalDFEmea <- pivot_wider(outputFinalDFEmea, names_from = Date, values_from = Forecast)
+    outputFinalDFEmea <- pivot_wider(outputFinalDFEmea, names_from = Date, values_from = Forecast) 
     
-    outputFinalDFEmea <- as.data.frame(lapply(outputFinalDFEmea, as.numeric))
+    outputFinalDFEmea <- as.data.frame(lapply(outputFinalDFEmea, as.numeric))%>%
+      rename_with(~gsub("^X", "", .), .cols = starts_with("X"))
+    
     
     # Sum of row EMEA
     sumEMEA <- rowSums(outputFinalDFEmea[, -1])
@@ -683,18 +690,25 @@ server <- function(input, output) {
     #FINAL FORECAST NA
     finalDFNa <- dummyDFNa[which(dummyDFNa$Model == "SNAIVE"),]
     outputFinalDFNa <- finalDFNa %>% select(-c("Timeseries", "Model"))
-    outputFinalDFNa <- pivot_wider(outputFinalDFNa, names_from = Date, values_from = Forecast)
+    outputFinalDFNa <- pivot_wider(outputFinalDFNa, names_from = Date, values_from = Forecast) 
     
-    outputFinalDFNa <- as.data.frame(lapply(outputFinalDFNa, as.numeric))
+    outputFinalDFNa <- as.data.frame(lapply(outputFinalDFNa, as.numeric)) %>%
+      rename_with(~gsub("^X", "", .), .cols = starts_with("X"))
     
     # Sum of row NA
-    sumNA <- rowSums(outputFinalDFNa[, -1])
+    sumNA <-0
+    
+    for(col in 1:ncol(outputFinalDFNa)){
+      sumNA = sumNA + outputFinalDFNa[,col]
+    }
+    
+    sumTextNA <- paste(sumNA, collapse = " ")
     
     ##############3#OUTPUT NA AND EMEA FOREASTS##########################################################################################
     ##TABLE OUTPUT####
     output$predictie_EMEA <- DT::renderDT({
       req(outputFinalDFEmea)
-      DT::datatable(outputFinalDFEmea, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE), caption = account )
+      DT::datatable(outputFinalDFEmea, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE, columnDefs = list(list(className = 'dt-center', targets = "_all"))), caption = account, rownames = FALSE )
     })
     
     output$sumEMEA <- renderPrint({
@@ -703,11 +717,11 @@ server <- function(input, output) {
     
     output$predictie_NA <- DT::renderDT({
       req(outputFinalDFNa)
-      DT::datatable(outputFinalDFNa, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE), caption = account )
+      DT::datatable(outputFinalDFNa, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE, columnDefs = list(list(className = 'dt-center', targets = "_all"))), caption = account, rownames = FALSE )
     })
     
     output$sumNA <- renderPrint({
-      req(sumNA)
+      req(sumTextNA)
     })
     
     #################OUTPUT GRAFICE PREZICERE######################################
@@ -740,12 +754,12 @@ server <- function(input, output) {
   #REACTIVE DATA
   output$tabel_EMEA <- DT::renderDT({
     req(reactiveData()$tabel_EMEA, cancelOutput = TRUE)
-    DT::datatable(reactiveData()$tabel_EMEA, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE, columnDefs = list(list(className = 'dt-center', targets = 0:4))))
+    DT::datatable(reactiveData()$tabel_EMEA, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE, columnDefs = list(list(className = 'dt-center', targets = "_all"))), rownames = FALSE)
   })
   
   output$tabel_NA <- DT::renderDT({
     req(reactiveData()$tabel_NA, cancelOutput = TRUE)
-    DT::datatable(reactiveData()$tabel_NA, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE, columnDefs = list(list(className = 'dt-center', targets = 0:4))))
+    DT::datatable(reactiveData()$tabel_NA, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE, columnDefs = list(list(className = 'dt-center', targets = "_all"))), rownames = FALSE)
   })
   
   output$graphSet1EMEA <- renderPlot({
