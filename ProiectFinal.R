@@ -26,7 +26,7 @@ ui <- dashboardPage(
   
   skin = "blue",
   
-  dashboardHeader(title = "Dacian BI Tool"
+  dashboardHeader(title = "P&L Forecast"
   ),
   dashboardSidebar(
     
@@ -390,7 +390,7 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       scale_color_viridis(discrete = TRUE)+
-      ylab("Sales") + 
+      ylab("Value") + 
       ggtitle(paste(input$selectYear, "EMEA Historical Data for Gross Sales, Net Sales and SGM"))+
       scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE)) +
       theme(
@@ -404,7 +404,7 @@ server <- function(input, output) {
       ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
       geom_line(size = 1.2) +
       geom_point(size = 4) +
-      ylab("Sales") + 
+      ylab("Value") + 
       ggtitle(paste(input$selectYear, "NA Historical Data for Gross Sales, Net Sales and SGM")) +
       scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE)) + 
       theme(
@@ -418,7 +418,7 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       scale_color_viridis(discrete = TRUE)+
-      ylab("Sales") + 
+      ylab("Value") + 
       ggtitle(paste(input$selectYear, "EMEA Historical Data for OCOS")) +
       scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE)) +
       theme(
@@ -432,7 +432,7 @@ server <- function(input, output) {
       ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
       geom_line(size = 1.2) +
       geom_point(size = 4) +
-      ylab("Sales") + 
+      ylab("Value") + 
       ggtitle(paste(input$selectYear, "NA Historical Data for OCOS")) +
       scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE)) + 
       theme(
@@ -446,7 +446,7 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       scale_color_viridis(discrete = TRUE)+
-      ylab("Sales") + 
+      ylab("Value") + 
       ggtitle(paste(input$selectYear, "EMEA Historical Data for SG&A and FX SGA")) +
       scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE)) +
       theme(
@@ -460,7 +460,7 @@ server <- function(input, output) {
       ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
       geom_line(size = 1.2) +
       geom_point(size = 4) +
-      ylab("Sales") + 
+      ylab("Value") + 
       ggtitle(paste(input$selectYear, "NA Historical Data for SG&A and FX SGA")) +
       scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE)) + 
       theme(
@@ -474,7 +474,7 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       scale_color_viridis(discrete = TRUE)+
-      ylab("Sales") + 
+      ylab("Value") + 
       ggtitle(paste(input$selectYear, "EMEA Historical Data for Operating Margin")) +
       scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE)) +
       theme(
@@ -488,7 +488,7 @@ server <- function(input, output) {
       ggplot(aes(x=Date, y=Value, group=Account, color=Account)) +
       geom_line(size = 1.2) +
       geom_point(size = 4) +
-      ylab("Sales") + 
+      ylab("Value") + 
       ggtitle(paste(input$selectYear, "NA Historical Data for Operating Margin")) +
       scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE)) + 
       theme(
@@ -500,7 +500,7 @@ server <- function(input, output) {
     historyAllYears <- graphAllYears %>%
       ggplot(aes(x=Date, y=Value, group = Cluster, color = Cluster)) +
       geom_line(size = 1.2) +
-      ylab("Sales") + 
+      ylab("Value") + 
       ggtitle(paste("All Years Historical Data for", input$selectAcc)) +
       scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE))+ 
       theme(
@@ -726,26 +726,38 @@ server <- function(input, output) {
       dfGraphPredictEMEA <- finalDfEmea %>% 
         mutate(Date = as.Date(Date, format = "%Y-%m-%d")) %>% # convert to date format
         select(Date, Forecast)
+      
+      dfGraphPredictEMEA$Forecast <- as.factor(dfGraphPredictEMEA$Forecast)
+      
       ggplot(dfGraphPredictEMEA, aes(x = Date, y = Forecast, group = 1, color = "EMEA")) +
         geom_line(size = 1.2) +
         geom_point(size = 4) +
-
         ggtitle(paste(account, "prediction for EMEA")) +
-        scale_color_manual(values = c("EMEA" = "red")) + 
-        labs(color = "Region")
+        scale_color_manual(values = c("red")) +
+        labs(color = "Region") +
+        theme(
+          legend.position = "bottom",
+          legend.direction = "horizontal",
+          legend.box = "horizontal",   
+          legend.margin = margin(t = 10))
     })
     
     output$predictieNAgraph <- renderPlot({
       dfGraphPredictNA <- finalDFNa %>% 
         mutate(Date = as.Date(Date, format = "%Y-%m-%d")) %>% # convert to date format
         select(Date, Forecast)
+      
       ggplot(dfGraphPredictNA, aes(x = Date, y = Forecast, group = 1, color = "NA")) +
         geom_line(size = 1.2) +
         geom_point(size = 4) +
-
         ggtitle(paste(account, "prediction for NA")) +
         scale_color_manual(values = c("NA" = "blue")) + 
-        labs(color = "Region")
+        labs(color = "Region") +
+        theme(
+          legend.position = "bottom",
+          legend.direction = "horizontal",
+          legend.box = "horizontal",   
+          legend.margin = margin(t = 10))
     })
     
   })
