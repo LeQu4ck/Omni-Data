@@ -26,7 +26,7 @@ ui <- dashboardPage(
   
   skin = "blue",
   
-  dashboardHeader(title = "OmniBI"
+  dashboardHeader(title = "Dacian BI Tool"
   ),
   dashboardSidebar(
     
@@ -392,7 +392,7 @@ server <- function(input, output) {
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
       ggtitle(paste(input$selectYear, "EMEA Historical Data for Gross Sales, Net Sales and SGM"))+
-      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
+      scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE)) +
       theme(
         legend.position = "bottom",
         legend.direction = "horizontal",
@@ -406,7 +406,7 @@ server <- function(input, output) {
       geom_point(size = 4) +
       ylab("Sales") + 
       ggtitle(paste(input$selectYear, "NA Historical Data for Gross Sales, Net Sales and SGM")) +
-      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) + 
+      scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE)) + 
       theme(
         legend.position = "bottom",
         legend.direction = "horizontal",
@@ -420,7 +420,7 @@ server <- function(input, output) {
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
       ggtitle(paste(input$selectYear, "EMEA Historical Data for OCOS")) +
-      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
+      scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE)) +
       theme(
         legend.position = "bottom",
         legend.direction = "horizontal",
@@ -434,7 +434,7 @@ server <- function(input, output) {
       geom_point(size = 4) +
       ylab("Sales") + 
       ggtitle(paste(input$selectYear, "NA Historical Data for OCOS")) +
-      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) + 
+      scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE)) + 
       theme(
         legend.position = "bottom",
         legend.direction = "horizontal",
@@ -448,7 +448,7 @@ server <- function(input, output) {
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
       ggtitle(paste(input$selectYear, "EMEA Historical Data for SG&A and FX SGA")) +
-      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
+      scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE)) +
       theme(
         legend.position = "bottom",
         legend.direction = "horizontal",
@@ -462,7 +462,7 @@ server <- function(input, output) {
       geom_point(size = 4) +
       ylab("Sales") + 
       ggtitle(paste(input$selectYear, "NA Historical Data for SG&A and FX SGA")) +
-      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) + 
+      scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE)) + 
       theme(
         legend.position = "bottom",
         legend.direction = "horizontal",
@@ -476,7 +476,7 @@ server <- function(input, output) {
       scale_color_viridis(discrete = TRUE)+
       ylab("Sales") + 
       ggtitle(paste(input$selectYear, "EMEA Historical Data for Operating Margin")) +
-      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) +
+      scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE)) +
       theme(
         legend.position = "bottom",
         legend.direction = "horizontal",
@@ -489,8 +489,8 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       geom_point(size = 4) +
       ylab("Sales") + 
-      ggtitle(paste(input$selectYear, "NA Historical Data for SG&A and Operating Margin")) +
-      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE)) + 
+      ggtitle(paste(input$selectYear, "NA Historical Data for Operating Margin")) +
+      scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE)) + 
       theme(
         legend.position = "bottom",
         legend.direction = "horizontal",
@@ -502,7 +502,7 @@ server <- function(input, output) {
       geom_line(size = 1.2) +
       ylab("Sales") + 
       ggtitle(paste("All Years Historical Data for", input$selectAcc)) +
-      scale_y_continuous(labels = function(Value)format(Value, scientific = FALSE))+ 
+      scale_y_continuous(labels = function(Value)format(Value, big.mark = ",", scientific = FALSE))+ 
       theme(
         legend.position = "bottom",
         legend.direction = "horizontal",
@@ -608,14 +608,14 @@ server <- function(input, output) {
     #FINAL FORECAST EMEA
     finalDfEmea <- dummyDFEmea[which(dummyDFEmea$Model == "PROPHET"),]
     outputFinalDFEmea <- finalDfEmea %>% select(-c("Timeseries", "Model"))
-    outputFinalDFEmea <- pivot_wider(outputFinalDFEmea, names_from = Date, values_from = Forecast) 
+    outputFinalDFEmea$Forecast <- as.numeric(outputFinalDFEmea$Forecast)
     
-    outputFinalDFEmea <- as.data.frame(lapply(outputFinalDFEmea, as.numeric))%>%
+    outputFinalDFEmeaTable <- pivot_wider(outputFinalDFEmea, names_from = Date, values_from = Forecast) 
+    sumEMEA <- rowSums(outputFinalDFEmeaTable[, -1])
+    sumEMEA <- format(sumEMEA, big.mark = ",")
+  
+    outputFinalDFEmeaTable <- as.data.frame(lapply(outputFinalDFEmeaTable, function(x) format(x, big.mark = ",", scientific = FALSE))) %>%
       rename_with(~gsub("^X", "", .), .cols = starts_with("X"))
-    
-    
-    # Sum of row EMEA
-    sumEMEA <- rowSums(outputFinalDFEmea[, -1])
     
     ################################FORECAST NA#####################################################3
     omniDataNA <- omniData() %>% filter(Cluster == "NA" & Account == account & Date < '2022-12-01')
@@ -690,25 +690,22 @@ server <- function(input, output) {
     #FINAL FORECAST NA
     finalDFNa <- dummyDFNa[which(dummyDFNa$Model == "SNAIVE"),]
     outputFinalDFNa <- finalDFNa %>% select(-c("Timeseries", "Model"))
-    outputFinalDFNa <- pivot_wider(outputFinalDFNa, names_from = Date, values_from = Forecast) 
+    outputFinalDFNa$Forecast <- as.numeric(outputFinalDFNa$Forecast)
     
-    outputFinalDFNa <- as.data.frame(lapply(outputFinalDFNa, as.numeric)) %>%
-      rename_with(~gsub("^X", "", .), .cols = starts_with("X"))
-    
+    outputFinalDFNaTable <- pivot_wider(outputFinalDFNa, names_from = Date, values_from = Forecast) 
     # Sum of row NA
-    sumNA <-0
+    sumNA <- rowSums(outputFinalDFNaTable[, -1])
+    sumNA <- format(sumNA, big.mark = ",")
     
-    for(col in 1:ncol(outputFinalDFNa)){
-      sumNA = sumNA + outputFinalDFNa[,col]
-    }
-    
-    sumTextNA <- paste(sumNA, collapse = " ")
-    
+    outputFinalDFNaTable <- as.data.frame(lapply(outputFinalDFNaTable, function(x) format(x, big.mark = ",", scientific = FALSE))) %>%
+      rename_with(~gsub("^X", "", .), .cols = starts_with("X"))
+  
     ##############3#OUTPUT NA AND EMEA FOREASTS##########################################################################################
     ##TABLE OUTPUT####
+    
     output$predictie_EMEA <- DT::renderDT({
-      req(outputFinalDFEmea)
-      DT::datatable(outputFinalDFEmea, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE, columnDefs = list(list(className = 'dt-center', targets = "_all"))), caption = account, rownames = FALSE )
+      req(outputFinalDFEmeaTable)
+      DT::datatable(outputFinalDFEmeaTable, options = list(paging = FALSE, info = FALSE, lengthChange = FALSE, searching = FALSE, ordering = FALSE, columnDefs = list(list(className = 'dt-center', targets = "_all"))), caption = account, rownames = FALSE )
     })
     
     output$sumEMEA <- renderPrint({
@@ -716,12 +713,12 @@ server <- function(input, output) {
     })
     
     output$predictie_NA <- DT::renderDT({
-      req(outputFinalDFNa)
-      DT::datatable(outputFinalDFNa, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE, columnDefs = list(list(className = 'dt-center', targets = "_all"))), caption = account, rownames = FALSE )
+      req(outputFinalDFNaTable)
+      DT::datatable(outputFinalDFNaTable, options = list(paging = FALSE, info = FALSE, lengthChange = FALSE, searching = FALSE, ordering = FALSE, columnDefs = list(list(className = 'dt-center', targets = "_all"))), caption = account, rownames = FALSE )
     })
     
     output$sumNA <- renderPrint({
-      req(sumTextNA)
+      req(sumNA)
     })
     
     #################OUTPUT GRAFICE PREZICERE######################################
@@ -732,6 +729,7 @@ server <- function(input, output) {
       ggplot(dfGraphPredictEMEA, aes(x = Date, y = Forecast, group = 1, color = "EMEA")) +
         geom_line(size = 1.2) +
         geom_point(size = 4) +
+
         ggtitle(paste(account, "prediction for EMEA")) +
         scale_color_manual(values = c("EMEA" = "red")) + 
         labs(color = "Region")
@@ -744,6 +742,7 @@ server <- function(input, output) {
       ggplot(dfGraphPredictNA, aes(x = Date, y = Forecast, group = 1, color = "NA")) +
         geom_line(size = 1.2) +
         geom_point(size = 4) +
+
         ggtitle(paste(account, "prediction for NA")) +
         scale_color_manual(values = c("NA" = "blue")) + 
         labs(color = "Region")
@@ -754,12 +753,12 @@ server <- function(input, output) {
   #REACTIVE DATA
   output$tabel_EMEA <- DT::renderDT({
     req(reactiveData()$tabel_EMEA, cancelOutput = TRUE)
-    DT::datatable(reactiveData()$tabel_EMEA, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE, columnDefs = list(list(className = 'dt-center', targets = "_all"))), rownames = FALSE)
+    DT::datatable(reactiveData()$tabel_EMEA, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE, ordering = FALSE, columnDefs = list(list(className = 'dt-center', targets = "_all"))), rownames = FALSE)
   })
   
   output$tabel_NA <- DT::renderDT({
     req(reactiveData()$tabel_NA, cancelOutput = TRUE)
-    DT::datatable(reactiveData()$tabel_NA, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE, columnDefs = list(list(className = 'dt-center', targets = "_all"))), rownames = FALSE)
+    DT::datatable(reactiveData()$tabel_NA, options = list(pageLength = 5, lengthChange = FALSE, searching = FALSE, ordering = FALSE, columnDefs = list(list(className = 'dt-center', targets = "_all"))), rownames = FALSE)
   })
   
   output$graphSet1EMEA <- renderPlot({
